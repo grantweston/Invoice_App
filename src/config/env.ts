@@ -1,8 +1,9 @@
 "use server";
 
-// Updated to include Google credentials and detailed logging.
-// This ensures that environment variables for Supabase, Gemini LLM, and Google APIs are loaded correctly.
-
+/**
+ * required(name: string)
+ * Retrieves an environment variable or logs a warning if missing.
+ */
 function required(name: string) {
   const value = process.env[name];
   if (!value) {
@@ -11,6 +12,11 @@ function required(name: string) {
   return value || '';
 }
 
+// Retrieve and parse the Google private key, replacing literal '\n' with actual newlines.
+const rawPrivateKey = required('GOOGLE_PRIVATE_KEY');
+const googlePrivateKey = rawPrivateKey.replace(/\\n/g, '\n');
+
+// Export all env vars in a structured object for easy access.
 export const ENV = {
   SUPABASE_URL: required('SUPABASE_URL'),
   SUPABASE_SERVICE_ROLE_KEY: required('SUPABASE_SERVICE_ROLE_KEY'),
@@ -18,7 +24,6 @@ export const ENV = {
   GOOGLE_CLIENT_EMAIL: required('GOOGLE_CLIENT_EMAIL'),
   GOOGLE_PROJECT_ID: required('GOOGLE_PROJECT_ID'),
   GOOGLE_PRIVATE_KEY_ID: required('GOOGLE_PRIVATE_KEY_ID'),
-  // Private key may contain \n, ensure it's loaded properly (in a production scenario, parse it).
-  GOOGLE_PRIVATE_KEY: required('GOOGLE_PRIVATE_KEY'),
+  GOOGLE_PRIVATE_KEY: googlePrivateKey,
   GOOGLE_CLIENT_ID: required('GOOGLE_CLIENT_ID')
 };

@@ -3,62 +3,83 @@
 import { Suspense } from "react";
 import WIPTable from "./components/WIPTable";
 import LoadingSpinner from "./components/LoadingSpinner";
-import { revalidatePath } from 'next/cache';
 
-async function endWorkSession() {
-  // When the user ends their work session, we trigger a daily report generation.
-  // In a real scenario, we would call a server action or API endpoint to generate the report.
-  // Here, we just simulate a server call and revalidate the page or navigate to the daily report page.
+// We will use a client component for the form actions (Begin/End Work Session buttons)
+// to call the /api/dailyReport POST route. This requires a client-side action.
 
-  // For demonstration, let's just revalidate this page (no real action).
-  await revalidatePath('/daily-report');
-}
+import { useState } from "react";
+import { useRouter } from 'next/navigation';
 
-// This page serves as the main dashboard, displaying current WIP entries.
-// Now includes buttons to "Begin Work Session" and "End Work Session".
-// Begin Work Session might reset some state or just be a placeholder for now.
-// End Work Session triggers the daily report generation logic.
+// Note: We are mixing "use server" at top-level and a client component inside.
+// The server component returns PageClient as children inside Suspense.
+// PageClient is defined below with "use client".
+
 export default async function Page() {
-  // Mock WIP entries for demonstration
+  // Mock WIP entries for demonstration. In a real app, we'd fetch from DB.
   const wipEntries = [
     { id: 1, client: "Client A", project: "Project Alpha", hours: 1.25, description: "Tax preparation" },
     { id: 2, client: "Client B", project: "Project Beta", hours: 0.5, description: "Audit review" }
   ];
-  
+
+  // Return the page wrapped in a Suspense boundary, rendering PageClient as a client component.
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <div className="p-4">
-
-        <h1 className="text-xl font-bold mb-4">Work In Progress (WIP) Dashboard</h1>
-
-        {/* Buttons for starting and ending a work session */}
-        <div className="mb-4 flex space-x-2">
-          <form action="#" method="post" onSubmit={(e) => e.preventDefault()}>
-            <button
-              type="submit"
-              className="bg-green-600 text-white px-3 py-1 rounded text-sm"
-            >
-              Begin Work Session
-            </button>
-          </form>
-
-          <form action="#" method="post" onSubmit={async (e) => {
-            e.preventDefault();
-            await endWorkSession();
-            // In a real scenario, navigate to /daily-report or show a notification.
-          }}>
-            <button
-              type="submit"
-              className="bg-red-600 text-white px-3 py-1 rounded text-sm"
-            >
-              End Work Session
-            </button>
-          </form>
-        </div>
-
-        {/* Displaying the WIP entries in a table component */}
-        <WIPTable initialData={wipEntries} />
-      </div>
+      <PageClient wipEntries={wipEntries} />
     </Suspense>
+  );
+}
+
+/**
+ * PageClient:
+ * A client component that renders the WIP dashboard and "Begin Work Session" and "End Work Session" buttons.
+ * When "End Work Session" is clicked, it triggers a POST to /api/dailyReport to produce a fresh daily aggregation,
+ * then navigates to /daily-report to show the new report.
+ */
+function PageClient({ wipEntries }: { wipEntries: any[] }) {
+  "use client";
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  const endWorkSession = async () => {
+    setLoading(true);
+    // POST to /api/dailyReport to force re-aggregation
+    const res = await fetch('/api/dailyReport', { method: 'POST' });
+    if (!res.ok) {
+      alert("Failed to generate daily report");
+      setLoading(false);
+      return;
+    }
+    // On success, navigate to the daily-report page to view aggregated data.
+    router.push('/daily-report');
+  };
+
+  return (
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4">Work In Progress (WIP) Dashboard</h1>
+
+      <div className="mb-4 flex space-x-2">
+        {/* Begin Work Session is just a placeholder alert right now */}
+        <button
+          type="button"
+          className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+          onClick={() => alert("Work session started (placeholder)")}
+        >
+          Begin Work Session
+        </button>
+
+        {/* End Work Session triggers the daily aggregation */}
+        <button
+          type="button"
+          className="bg-red-600 text-white px-3 py-1 rounded text-sm"
+          onClick={endWorkSession}
+          disabled={loading}
+        >
+          {loading ? "Generating Report..." : "End Work Session"}
+        </button>
+      </div>
+
+      {/* Display the current WIP entries in a table */}
+      <WIPTable initialData={wipEntries} />
+    </div>
   );
 }
