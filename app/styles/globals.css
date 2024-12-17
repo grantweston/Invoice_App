@@ -1,0 +1,7 @@
+/* Global styles for the entire app */
+/* Resets margin and padding and sets a simple, sans-serif font for all text */
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}

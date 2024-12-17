@@ -1,0 +1,2 @@
+-- This is a placeholder file indicating the migrations directory.
+-- Actual SQL migrations would go here.
