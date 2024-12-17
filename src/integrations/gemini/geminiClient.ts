@@ -2,33 +2,22 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Get API key directly from process.env for server component
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-  console.error("GEMINI_API_KEY is missing from environment variables.");
+  throw new Error("GEMINI_API_KEY is missing from environment variables.");
 }
 
-const client = new GoogleGenerativeAI({
-  apiKey
-});
+const client = new GoogleGenerativeAI(apiKey);
 
 export async function callGemini(prompt: string): Promise<string> {
   try {
-    const model = await client.getGenerativeModel({
-      model: "gemini-2.0-flash"
-    });
-
-    const response = await model.generateContent({
-      prompt
-    });
-
-    if (response && response.candidates && response.candidates.length > 0) {
-      return response.candidates[0].output || "";
-    } else {
-      console.warn("Gemini API returned no candidates.");
-      return "";
-    }
-  } catch (error: any) {
+    const model = client.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
     console.error("Error calling Gemini API:", error);
-    return "";
+    throw error;
   }
 }

@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Global styles for the entire app */
 /* Resets margin and padding and sets a simple, sans-serif font for all text */
 html, body {
