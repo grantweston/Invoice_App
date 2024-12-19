@@ -11,11 +11,14 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.39.0",
+    "@types/recordrtc": "^5.6.14",
     "@types/screenshot-desktop": "^1.12.3",
     "next": "14.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "screenshot-desktop": "^1.15.0"
+    "recordrtc": "^5.6.2",
+    "screenshot-desktop": "^1.15.0",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

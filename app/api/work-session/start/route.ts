@@ -1,17 +1,28 @@
 import { NextResponse } from "next/server";
-import { screenCapture } from "@/src/services/screenCaptureService";
+import { createTimeEntry } from "@/src/backend/services/timeEntryService";
 
 export async function POST() {
   try {
-    await screenCapture.startCapturing();
+    // Create initial time entry
+    const entry = await createTimeEntry({
+      clientId: 'A',
+      projectId: 'Alpha',
+      hours: 0,
+      description: 'Started work session',
+      date: new Date().toISOString()
+    });
+
+    console.log('Time entry created:', entry);
+
     return NextResponse.json({ 
-      success: true, 
-      message: "Screen capture started" 
+      status: "started",
+      timeEntry: entry
     });
   } catch (error: any) {
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 });
+    console.error("Failed to start work session:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to start work session" },
+      { status: 500 }
+    );
   }
-} 
+}

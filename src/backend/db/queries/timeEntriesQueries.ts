@@ -1,24 +1,31 @@
 "use server";
 
-import { supabase } from '../supabaseClient';
+import { getSupabase } from '../supabaseClient';
 import { TimeEntry } from '@/src/backend/models/TimeEntry';
 
 export async function insertTimeEntry(entry: TimeEntry) {
-  const { data, error } = await supabase.from('time_entries').insert(entry).select();
+  const supabase = await getSupabase();
+  const dbEntry = {
+    client_id: entry.clientId,
+    project_id: entry.projectId,
+    hours: entry.hours,
+    description: entry.description,
+    date: entry.date,
+  };
+  const { data, error } = await supabase.from('time_entries').insert(dbEntry).select();
   if (error) throw error;
   return data;
 }
 
 export async function fetchAllTimeEntries() {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.from('time_entries').select('*');
   if (error) throw error;
   return data;
 }
 
-// For getting client and project details, we might join tables in a real scenario.
-// Here we assume a simplified structure.
 export async function fetchClientWithProjects(clientId: string) {
-  // Mock return
+  // Mock return for now
   return {
     name: "Mock Client",
     projects: [
