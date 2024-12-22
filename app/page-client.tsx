@@ -9,6 +9,12 @@ import { useDailyLogs } from "@/src/store/dailyLogs";
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useNormalizedNames } from "@/src/store/normalizedNames";
+import { 
+  findRelatedEntries, 
+  mergeEntryGroup, 
+  shouldEntriesBeMerged,
+  compareDescriptions 
+} from '@/src/backend/services/intelligentAggregationService';
 
 const recorder = new ClientScreenRecorder();
 
@@ -121,84 +127,22 @@ function generateUniqueId(): number {
   return Date.now() * 1000 + Math.floor(Math.random() * 1000);
 }
 
-// Helper function to normalize and merge similar entries
-function normalizeEntries(entries: WIPEntry[], getNormalizedName: (type: 'clients' | 'projects', original: string) => string, preserveDescriptions: boolean = false): WIPEntry[] {
-  // Group similar clients
-  const clientGroups: Record<string, WIPEntry[]> = {};
+// Add this helper function at the top with other helpers
+const getTimeInMinutes = (entry: WIPEntry): number => {
+  if (typeof entry.timeInMinutes === 'number') {
+    return entry.timeInMinutes;
+  }
+  return entry.hours ? Math.round(entry.hours * 60) : 0;
+};
+
+// Replace the normalizeEntries function with:
+async function normalizeEntries(entries: WIPEntry[]): Promise<WIPEntry[]> {
+  // First, find related entries using intelligent analysis
+  const groups = await findRelatedEntries(entries);
   
-  entries.forEach(entry => {
-    // Get normalized client name
-    const normalizedClientName = getNormalizedName('clients', entry.client);
-    
-    // Find if we have a similar client group
-    const similarClientGroup = Object.keys(clientGroups).find(client => 
-      isSimilarTask({ client, project: '', description: '' } as WIPEntry, { ...entry, client: normalizedClientName } as WIPEntry)
-    );
-
-    if (similarClientGroup) {
-      clientGroups[similarClientGroup].push(entry);
-    } else {
-      clientGroups[normalizedClientName] = [entry];
-    }
-  });
-
-  // For each client group, group by similar projects
-  const normalizedEntries: WIPEntry[] = [];
-  
-  Object.entries(clientGroups).forEach(([clientName, clientEntries]) => {
-    const projectGroups: Record<string, WIPEntry[]> = {};
-
-    clientEntries.forEach(entry => {
-      // Get normalized project name
-      const normalizedProjectName = getNormalizedName('projects', entry.project);
-      
-      const similarProjectGroup = Object.keys(projectGroups).find(project =>
-        isSimilarTask({ client: '', project, description: '' } as WIPEntry, { ...entry, project: normalizedProjectName } as WIPEntry)
-      );
-
-      if (similarProjectGroup) {
-        projectGroups[similarProjectGroup].push(entry);
-      } else {
-        projectGroups[normalizedProjectName] = [entry];
-      }
-    });
-
-    // Merge entries with similar projects
-    Object.entries(projectGroups).forEach(([projectName, projectEntries]) => {
-      if (preserveDescriptions) {
-        // Keep each entry separate with normalized client/project names
-        projectEntries.forEach(entry => {
-          normalizedEntries.push({
-            ...entry,
-            id: entry.id, // Keep original ID
-            client: clientName,
-            project: projectName,
-            // Keep original description and other fields
-            description: entry.description,
-            partner: entry.partner || '',
-            hourlyRate: entry.hourlyRate || 0
-          });
-        });
-      } else {
-        // Merge entries for WIP view
-        const totalHours = projectEntries.reduce((sum, e) => sum + e.hours, 0);
-        const descriptions = projectEntries.map(e => e.description);
-        const mostRecentEntry = projectEntries.sort((a, b) => b.id - a.id)[0];
-        
-        normalizedEntries.push({
-          id: generateUniqueId(),
-          client: clientName,
-          project: projectName,
-          hours: totalHours,
-          description: mergeDescriptions(...descriptions),
-          partner: mostRecentEntry.partner || '',
-          hourlyRate: mostRecentEntry.hourlyRate || 0
-        });
-      }
-    });
-  });
-
-  return normalizedEntries;
+  // Then merge each group into a single entry
+  const mergedEntries = await Promise.all(groups.map(group => mergeEntryGroup(group)));
+  return mergedEntries;
 }
 
 // Add this function at the top with other helper functions
@@ -233,12 +177,19 @@ export default function PageClient({ initialEntries }: PageClientProps) {
 
   // Initialize WIP entries from store or initial entries
   useEffect(() => {
-    if (initialEntries.length > 0 && wipEntries.length === 0) {
-      // Normalize initial entries before setting
-      const normalizedEntries = normalizeEntries(initialEntries, getNormalizedName, false);
-      setWipEntries(normalizedEntries);
-    }
-  }, [initialEntries, wipEntries.length, setWipEntries, getNormalizedName]);
+    const initializeEntries = async () => {
+      if (initialEntries.length > 0 && wipEntries.length === 0) {
+        try {
+          const normalizedEntries = await normalizeEntries(initialEntries);
+          setWipEntries(normalizedEntries);
+        } catch (error) {
+          console.error("Error normalizing initial entries:", error);
+        }
+      }
+    };
+    
+    initializeEntries();
+  }, [initialEntries, wipEntries.length, setWipEntries]);
 
   // Remove periodic normalization effect
   // We'll only normalize on blur now
@@ -264,38 +215,97 @@ export default function PageClient({ initialEntries }: PageClientProps) {
   };
 
   // Update new entries with defaults
-  const updateWipFromDaily = (newDailyEntry: WIPEntry) => {
-    setWipEntries((prev: WIPEntry[]) => {
-      // Add new entry to existing entries with defaults
-      const updatedEntries = [...prev, { 
+  const updateWipFromDaily = async (newDailyEntry: WIPEntry) => {
+    try {
+      // First, check if this entry should be merged with an existing WIP entry
+      for (const existingEntry of wipEntries) {
+        const { shouldMerge, confidence } = await shouldEntriesBeMerged(existingEntry, newDailyEntry);
+        
+        if (shouldMerge && confidence > 0.7) {
+          console.log('🔄 Merging with existing WIP entry:', existingEntry.id);
+          
+          // Update the existing entry's time
+          const updatedEntries = await Promise.all(wipEntries.map(async entry => {
+            if (entry.id === existingEntry.id) {
+              // Increment time by 1 minute (the daily entry's duration)
+              const newMinutes = (entry.timeInMinutes || 0) + (newDailyEntry.timeInMinutes || 0);
+              
+              // Create updated entry with new time and potentially new client
+              let updatedEntry = {
+                ...entry,
+                timeInMinutes: newMinutes,
+                hours: newMinutes / 60,
+                // If client was unknown but now known, update it
+                client: entry.client === "Unknown" && newDailyEntry.client !== "Unknown" 
+                  ? newDailyEntry.client 
+                  : entry.client,
+                // Add the new daily entry ID to the associations
+                associatedDailyIds: [...(entry.associatedDailyIds || []), newDailyEntry.id]
+              };
+
+              // Compare descriptions synchronously
+              try {
+                const comparison = await compareDescriptions(entry.description, newDailyEntry.description);
+                if (comparison.shouldUpdate && comparison.updatedDescription) {
+                  console.log('📝 Updating description based on new daily entry');
+                  updatedEntry = {
+                    ...updatedEntry,
+                    description: comparison.updatedDescription
+                  };
+                }
+              } catch (error) {
+                console.error('Error comparing descriptions:', error);
+              }
+
+              return updatedEntry;
+            }
+            return entry;
+          }));
+
+          setWipEntries(updatedEntries);
+          return; // Exit after finding and updating a match
+        }
+      }
+
+      // If no match found, create a new WIP entry
+      console.log('➕ Creating new WIP entry for daily entry');
+      const updatedEntries = [...wipEntries, { 
         ...newDailyEntry,
         partner: defaultPartner,
-        hourlyRate: defaultRate
+        hourlyRate: defaultRate,
+        associatedDailyIds: [newDailyEntry.id] // Initialize with the current daily entry ID
       }];
+
       // Normalize and merge similar entries
-      const normalized = normalizeEntries(updatedEntries, getNormalizedName);
+      const normalized = await normalizeEntries(updatedEntries);
       console.log('🔄 Normalized entries:', normalized);
-      return normalized;
-    });
+      setWipEntries(normalized);
+    } catch (error) {
+      console.error("Error updating WIP from daily:", error);
+    }
   };
 
   // Add normalize function
-  const normalizeAllEntries = () => {
+  const normalizeAllEntries = async () => {
     console.log('🔄 Manually normalizing all entries...');
     
-    // Get all entries from both stores
-    const dailyLogs = useDailyLogs.getState().logs;
-    const allEntries = [...wipEntries, ...dailyLogs];
-    
-    // Normalize WIP entries
-    const normalizedWipEntries = normalizeEntries(wipEntries, getNormalizedName, false);
-    
-    // Normalize daily logs (preserve descriptions)
-    const normalizedDailyEntries = normalizeEntries(dailyLogs, getNormalizedName, true);
-    
-    // Update both stores
-    setWipEntries(normalizedWipEntries);
-    useDailyLogs.getState().setLogs(normalizedDailyEntries);
+    try {
+      // Get all entries from both stores
+      const dailyLogs = useDailyLogs.getState().logs;
+      const allEntries = [...wipEntries, ...dailyLogs];
+      
+      // Normalize WIP entries
+      const normalizedWipEntries = await normalizeEntries(wipEntries);
+      
+      // Normalize daily logs
+      const normalizedDailyEntries = await normalizeEntries(dailyLogs);
+      
+      // Update both stores
+      setWipEntries(normalizedWipEntries);
+      useDailyLogs.getState().setLogs(normalizedDailyEntries);
+    } catch (error) {
+      console.error("Error normalizing all entries:", error);
+    }
   };
 
   // Clear all data
@@ -387,12 +397,38 @@ export default function PageClient({ initialEntries }: PageClientProps) {
             client: matchingEntry.client === "Unknown" && analysis.client_name !== "Unknown" 
               ? analysis.client_name 
               : matchingEntry.client,
-            hours: matchingEntry.hours + 1/60,
+            timeInMinutes: getTimeInMinutes(matchingEntry) + 1,
+            hours: (getTimeInMinutes(matchingEntry) + 1) / 60,
             description: mergeDescriptions(matchingEntry.description, analysis.activity_description || '')
           };
           
+          // Create daily log entry first to get its ID
+          const dailyEntry = {
+            id: Date.now(),
+            client: updatedEntry.client,
+            project: updatedEntry.project,
+            timeInMinutes: 1,
+            hours: 1/60,
+            partner: defaultPartner,
+            hourlyRate: defaultRate,
+            description: analysis.detailed_description || analysis.activity_description || 'No description available',
+            associatedDailyIds: [],
+            subEntries: [],
+            startDate: Date.now(),
+            lastWorkedDate: Date.now()
+          };
+          
+          // Add the daily entry
+          addDailyLog(dailyEntry);
+          
+          // Now update the WIP entry with the new daily entry ID
+          const finalUpdatedEntry = {
+            ...updatedEntry,
+            associatedDailyIds: [...(updatedEntry.associatedDailyIds || []), dailyEntry.id]
+          };
+          
           setWipEntries(prev => prev.map(entry => 
-            entry.id === matchingEntry.id ? updatedEntry : entry
+            entry.id === matchingEntry.id ? finalUpdatedEntry : entry
           ));
 
           // Update recent unknown entries if we found a client
@@ -403,40 +439,43 @@ export default function PageClient({ initialEntries }: PageClientProps) {
                 : entry
             ));
           }
-          
-          // Create daily log entry with existing names
-          const dailyEntry = {
-            id: Date.now(),
-            client: updatedEntry.client,
-            project: updatedEntry.project,
-            hours: 1/60,
-            partner: defaultPartner,
-            hourlyRate: defaultRate,
-            description: analysis.detailed_description || analysis.activity_description || 'No description available'
-          };
-          
-          addDailyLog(dailyEntry);
         } else {
-          // Create new entry
-          const newEntry = {
+          // Create daily entry first
+          const dailyEntry = {
             id: Date.now(),
             client: analysis.client_name,
             project: analysis.project_name,
+            timeInMinutes: 1,
             hours: 1/60,
             partner: defaultPartner,
             hourlyRate: defaultRate,
-            description: analysis.activity_description || 'No description available'
+            description: analysis.detailed_description || analysis.activity_description || 'No description available',
+            associatedDailyIds: [],
+            subEntries: [],
+            startDate: Date.now(),
+            lastWorkedDate: Date.now()
+          };
+          
+          // Add the daily entry
+          addDailyLog(dailyEntry);
+          
+          // Create new WIP entry linked to the daily entry
+          const newEntry = {
+            id: Date.now() + 1, // Ensure different ID from daily entry
+            client: analysis.client_name,
+            project: analysis.project_name,
+            timeInMinutes: 1,
+            hours: 1/60,
+            partner: defaultPartner,
+            hourlyRate: defaultRate,
+            description: analysis.activity_description || 'No description available',
+            associatedDailyIds: [dailyEntry.id],
+            subEntries: [],
+            startDate: Date.now(),
+            lastWorkedDate: Date.now()
           };
           
           setWipEntries(prev => [...prev, newEntry]);
-          
-          // Create daily log entry
-          const dailyEntry = {
-            ...newEntry,
-            description: analysis.detailed_description || analysis.activity_description || 'No description available'
-          };
-          
-          addDailyLog(dailyEntry);
         }
         
         setLastUpdateTime(now);
@@ -504,21 +543,21 @@ export default function PageClient({ initialEntries }: PageClientProps) {
   };
 
   // Handle entry blur (when user finishes editing)
-  const handleEntryBlur = () => {
-    // Add a small delay to ensure the latest state is used
-    setTimeout(() => {
-      // Normalize entries after user finishes editing
-      const normalizedEntries = normalizeEntries(wipEntries, getNormalizedName, false);
+  const handleEntryBlur = async () => {
+    try {
+      const normalizedEntries = await normalizeEntries(wipEntries);
       if (JSON.stringify(normalizedEntries) !== JSON.stringify(wipEntries)) {
         console.log('🔄 Normalizing entries after edit...');
         setWipEntries(normalizedEntries);
         
         // Update daily logs with new normalized names
         const dailyLogs = useDailyLogs.getState().logs;
-        const normalizedDailyEntries = normalizeEntries(dailyLogs, getNormalizedName, true);
+        const normalizedDailyEntries = await normalizeEntries(dailyLogs);
         useDailyLogs.getState().setLogs(normalizedDailyEntries);
       }
-    }, 100);
+    } catch (error) {
+      console.error("Error normalizing entries:", error);
+    }
   };
 
   // Handle entry deletion
@@ -556,71 +595,180 @@ export default function PageClient({ initialEntries }: PageClientProps) {
     return diffMinutes <= minutes;
   }
 
+  // Update the useEffect that manages entries:
+  useEffect(() => {
+    const aggregateEntries = async () => {
+      if (wipEntries.length === 0) return;
+      
+      try {
+        const aggregated = await normalizeEntries(wipEntries);
+        setWipEntries(aggregated);
+      } catch (error) {
+        console.error("Error aggregating entries:", error);
+      }
+    };
+
+    // Debounce the aggregation to avoid too frequent updates
+    const timeoutId = setTimeout(aggregateEntries, 5000);
+    return () => clearTimeout(timeoutId);
+  }, [wipEntries]);
+
+  // Add this effect to periodically check for entries that should be merged
+  useEffect(() => {
+    const checkForMerges = async () => {
+      if (wipEntries.length < 2) return;
+
+      try {
+        console.log('🔄 Checking for entries to merge...');
+        const normalized = await normalizeEntries(wipEntries);
+        
+        // Only update if there are changes
+        if (JSON.stringify(normalized) !== JSON.stringify(wipEntries)) {
+          console.log('✨ Found entries to merge, updating...');
+          setWipEntries(normalized);
+          
+          // Update daily logs with new normalized names
+          const dailyLogs = useDailyLogs.getState().logs;
+          const normalizedDailyEntries = await normalizeEntries(dailyLogs);
+          useDailyLogs.getState().setLogs(normalizedDailyEntries);
+        } else {
+          console.log('✓ No new merges needed');
+        }
+      } catch (error) {
+        console.error("Error checking for merges:", error);
+      }
+    };
+
+    // Check every 30 seconds
+    const intervalId = setInterval(checkForMerges, 30000);
+    
+    // Run once immediately
+    checkForMerges();
+
+    return () => clearInterval(intervalId);
+  }, [wipEntries]); // Depend on wipEntries to catch new entries
+
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Work In Progress (WIP) Dashboard</h1>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          Work In Progress (WIP) Dashboard
+        </h1>
+        
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+              isRecording 
+                ? "bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed opacity-75" 
+                : "bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-800 shadow-sm hover:shadow"
+            }`}
+            onClick={startWorkSession}
+            disabled={isRecording}
+          >
+            <span className="flex items-center gap-2">
+              {isRecording ? (
+                <>
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                  Recording...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z" />
+                  </svg>
+                  Begin Work Session
+                </>
+              )}
+            </span>
+          </button>
 
-      <div className="mb-4 flex space-x-2">
-        <button
-          type="button"
-          className={`px-3 py-1 rounded text-sm ${
-            isRecording 
-              ? "bg-gray-400 text-white cursor-not-allowed" 
-              : "bg-green-600 text-white hover:bg-green-700"
-          }`}
-          onClick={startWorkSession}
-          disabled={isRecording}
-        >
-          {isRecording ? "Recording in Progress..." : "Begin Work Session"}
-        </button>
+          <button
+            type="button"
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+              !isRecording
+                ? "bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed opacity-75"
+                : "bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 shadow-sm hover:shadow"
+            }`}
+            onClick={endWorkSession}
+            disabled={!isRecording}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              End Session
+            </span>
+          </button>
 
-        <button
-          type="button"
-          className="bg-red-600 text-white px-3 py-1 rounded text-sm"
-          onClick={endWorkSession}
-          disabled={!isRecording}
-        >
-          End Work Session
-        </button>
+          <button
+            type="button"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-yellow-600 text-white hover:bg-yellow-700 
+              dark:bg-yellow-700 dark:hover:bg-yellow-800 transition-all duration-150 shadow-sm hover:shadow"
+            onClick={clearAllData}
+            disabled={isRecording}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Clear Data
+            </span>
+          </button>
 
-        <button
-          type="button"
-          className="bg-yellow-600 text-white px-3 py-1 rounded text-sm"
-          onClick={clearAllData}
-          disabled={isRecording}
-        >
-          Clear All Data
-        </button>
-
-        <button
-          type="button"
-          className="bg-purple-600 text-white px-3 py-1 rounded text-sm"
-          onClick={() => setShowSettings(true)}
-        >
-          Settings
-        </button>
+          <button
+            type="button"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-100 text-primary-700 hover:bg-primary-200
+              dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50 transition-all duration-150 shadow-sm hover:shadow"
+            onClick={() => setShowSettings(true)}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Settings
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-4 rounded-lg shadow-lg w-96">
-            <h2 className="text-lg font-semibold mb-4">Default Settings</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-xl w-full max-w-md m-4 animate-fade-in">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Default Settings</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Default Partner Name
                 </label>
                 <input
                   type="text"
                   value={defaultPartner}
                   onChange={(e) => setDefaultPartner(e.target.value)}
-                  className="mt-1 block w-full p-2 border rounded"
+                  className="w-full p-2 border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                    bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150"
                   placeholder="Enter partner name"
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Default Hourly Rate
                 </label>
                 <input
@@ -629,24 +777,28 @@ export default function PageClient({ initialEntries }: PageClientProps) {
                   onChange={(e) => setDefaultRate(parseFloat(e.target.value) || 0)}
                   min="0"
                   step="0.01"
-                  className="mt-1 block w-full p-2 border rounded"
+                  className="w-full p-2 border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                    bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150"
                   placeholder="Enter hourly rate"
                 />
               </div>
-              <div className="flex justify-end space-x-2">
+              
+              <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
-                  className="bg-gray-200 px-4 py-2 rounded"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-dark-border
+                    hover:bg-gray-200 dark:hover:bg-dark-bg transition-colors duration-150"
                   onClick={() => setShowSettings(false)}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700
+                    dark:bg-primary-700 dark:hover:bg-primary-800 transition-colors duration-150"
                   onClick={saveSettings}
                 >
-                  Save
+                  Save Changes
                 </button>
               </div>
             </div>
@@ -654,8 +806,10 @@ export default function PageClient({ initialEntries }: PageClientProps) {
         </div>
       )}
 
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Aggregated Time by Client & Project</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Aggregated Time by Client & Project
+        </h2>
         <WIPTable 
           entries={wipEntries} 
           onEntryUpdate={handleEntryUpdate}

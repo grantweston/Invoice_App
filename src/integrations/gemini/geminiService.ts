@@ -37,3 +37,15 @@ export async function summarizeFifteenMinutes(summaries: string[]) {
   const response = await callGemini(prompt);
   return response;
 }
+
+export async function analyze(prompt: string): Promise<string> {
+  try {
+    const model = client.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error("Error in Gemini analysis:", error);
+    throw error;
+  }
+}

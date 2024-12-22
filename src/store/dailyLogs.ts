@@ -2,6 +2,14 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { WIPEntry } from '@/src/types';
 
+// Add helper function
+const getTimeInMinutes = (entry: WIPEntry): number => {
+  if (typeof entry.timeInMinutes === 'number') {
+    return entry.timeInMinutes;
+  }
+  return entry.hours ? Math.round(entry.hours * 60) : 0;
+};
+
 interface DailyLogsState {
   logs: WIPEntry[];
   addLog: (entry: WIPEntry) => void;
@@ -17,8 +25,14 @@ export const useDailyLogs = create<DailyLogsState>()(
       logs: [],
       addLog: (entry) => {
         console.log('📝 Adding to daily logs:', entry);
+        // Ensure both time formats are set
+        const newEntry = {
+          ...entry,
+          timeInMinutes: getTimeInMinutes(entry),
+          hours: getTimeInMinutes(entry) / 60
+        };
         set((state) => {
-          const newLogs = [...state.logs, entry];
+          const newLogs = [...state.logs, newEntry];
           console.log('📊 Updated daily logs:', newLogs);
           return { logs: newLogs };
         });
@@ -38,7 +52,9 @@ export const useDailyLogs = create<DailyLogsState>()(
                 project: newEntry.project,
                 description: log.description,
                 partner: log.partner,
-                hourlyRate: log.hourlyRate
+                hourlyRate: log.hourlyRate,
+                timeInMinutes: getTimeInMinutes(log),
+                hours: getTimeInMinutes(log) / 60
               };
             }
             return log;
@@ -48,7 +64,13 @@ export const useDailyLogs = create<DailyLogsState>()(
       },
       setLogs: (logs) => {
         console.log('📊 Setting daily logs:', logs);
-        set({ logs });
+        // Ensure both time formats are set for all logs
+        const updatedLogs = logs.map(log => ({
+          ...log,
+          timeInMinutes: getTimeInMinutes(log),
+          hours: getTimeInMinutes(log) / 60
+        }));
+        set({ logs: updatedLogs });
       },
       deleteLogs: (entryToDelete) => {
         console.log('🗑️ Deleting logs matching:', entryToDelete);
