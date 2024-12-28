@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import LoadingSpinner from "../components/LoadingSpinner";
-import WIPTable from "../components/WIPTable";
+import WIPTable from "@/app/components/WIPTable";
 import { useDailyLogs } from "@/src/store/dailyLogs";
 import type { WIPEntry } from "@/src/types";
 
@@ -60,7 +60,7 @@ export default function DailyReport() {
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-xl font-bold">Daily Activity Report</h1>
+            <h1 className="text-xl font-bold">Daily Activity</h1>
             <p className="text-sm text-gray-600">
               Showing individual time entries from screen recording analysis
             </p>

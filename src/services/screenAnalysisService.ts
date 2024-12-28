@@ -107,18 +107,20 @@ export async function analyzeScreenshots(screenshots: string[], currentTasks: WI
        - Include relevant UI interactions
        - Mention console logs or debugging activities
        - Keep all technical details
+       - Avoid using phrases like "the user is" or "they are"
        
        WIP Dashboard (concise):
        - Provide a brief 1-2 sentence summary
        - Focus on the main task or goal
        - Use bullet points for multiple activities
        - Omit repetitive information
+       - Write in active voice without subject
     
     Return the information in this JSON format:
     {
       "client_name": "string, // Use 'Unknown' if not confident",
       "project_name": "string, // Describe the activity/project",
-      "activity_description": "string, // Brief summary for WIP dashboard",
+      "activity_description": "string, // Brief bullet points for WIP dashboard",
       "detailed_description": "string, // Detailed description for daily report",
       "confidence_score": number, // Between 0.4 and 1.0
       "client_detection_notes": "string, // Explain why this client was identified"

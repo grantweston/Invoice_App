@@ -2,7 +2,6 @@
 
 import { Suspense } from "react";
 import LoadingSpinner from "./components/LoadingSpinner";
-import WIPTable from "./components/WIPTable";
 import PageClient from "./page-client";
 import type { WIPEntry } from "@/src/types";
 

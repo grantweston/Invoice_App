@@ -2,7 +2,6 @@
 
 import type { WIPEntry } from "@/src/types";
 import { useEffect, useRef, useState } from 'react';
-import EmptyState from './EmptyState';
 
 interface WIPTableProps {
   entries: WIPEntry[];
@@ -10,8 +9,8 @@ interface WIPTableProps {
   onDelete: (entry: WIPEntry) => void;
   onBlur?: () => void;
   isEditable: boolean;
-  showTimestamp?: boolean;
-  showTotalCost?: boolean;
+  showTimestamp?: boolean; // For daily report view
+  showTotalCost?: boolean; // Add this line
 }
 
 // Format hours into hours and minutes
@@ -140,182 +139,6 @@ function formatDateRange(startDate: number, lastWorkedDate: number): string {
   return `${formatDate(start)} - ${formatDate(end)}`;
 }
 
-// Add this new base component for all animated number inputs
-const AnimatedNumberInput = ({ 
-  value,
-  onChange,
-  onBlur,
-  onKeyDown,
-  className,
-  prefix,
-  suffix,
-  min = "0",
-  upDownButtons,
-  onIncrement,
-  onDecrement
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  onBlur: () => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  className?: string;
-  prefix?: string;
-  suffix?: string;
-  min?: string;
-  upDownButtons?: boolean;
-  onIncrement?: () => void;
-  onDecrement?: () => void;
-}) => {
-  const [isIncreasing, setIsIncreasing] = useState(false);
-  const [isDecreasing, setIsDecreasing] = useState(false);
-  const prevValueRef = useRef(value);
-  const animationTimeoutRef = useRef<NodeJS.Timeout>();
-  const [animationKey, setAnimationKey] = useState(0);
-
-  useEffect(() => {
-    if (value !== prevValueRef.current) {
-      // Clear any existing timeouts
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
-      }
-
-      // Force animation reset by updating key
-      setAnimationKey(prev => prev + 1);
-
-      if (value > prevValueRef.current) {
-        setIsIncreasing(true);
-        animationTimeoutRef.current = setTimeout(() => setIsIncreasing(false), 300);
-      } else if (value < prevValueRef.current) {
-        setIsDecreasing(true);
-        animationTimeoutRef.current = setTimeout(() => setIsDecreasing(false), 300);
-      }
-      prevValueRef.current = value;
-    }
-
-    return () => {
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
-      }
-    };
-  }, [value]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseFloat(e.target.value) || 0;
-    onChange(newValue);
-  };
-
-  return (
-    <div className="relative w-full" key={animationKey}>
-      <input
-        type="number"
-        value={value}
-        onChange={handleChange}
-        onBlur={onBlur}
-        onKeyDown={onKeyDown}
-        className={`
-          w-full h-[34px] border dark:border-dark-border rounded 
-          focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
-          bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 
-          transition-all duration-150 ease-in-out
-          text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none 
-          [&::-webkit-inner-spin-button]:appearance-none
-          ${prefix ? 'pl-4' : 'pl-2'}
-          ${suffix || upDownButtons ? 'pr-8' : 'pr-2'}
-          ${className}
-        `}
-        min={min}
-        style={{
-          backgroundColor: isIncreasing 
-            ? `var(${window.matchMedia('(prefers-color-scheme: dark)').matches ? '--emerald-bg-dark' : '--emerald-bg-light'})` 
-            : isDecreasing 
-              ? `var(${window.matchMedia('(prefers-color-scheme: dark)').matches ? '--red-bg-dark' : '--red-bg-light'})` 
-              : '',
-          borderColor: isIncreasing 
-            ? `var(${window.matchMedia('(prefers-color-scheme: dark)').matches ? '--emerald-border-dark' : '--emerald-border-light'})` 
-            : isDecreasing 
-              ? `var(${window.matchMedia('(prefers-color-scheme: dark)').matches ? '--red-border-dark' : '--red-border-light'})` 
-              : '',
-          // Light theme - much brighter colors
-          '--emerald-bg-light': 'rgb(209 250 229 / 1)',
-          '--emerald-border-light': 'rgb(52 211 153)',
-          '--red-bg-light': 'rgb(254 226 226 / 1)',
-          '--red-border-light': 'rgb(239 68 68)',
-          // Dark theme - more subtle colors
-          '--emerald-bg-dark': 'rgb(6 78 59 / 0.15)',
-          '--emerald-border-dark': 'rgb(4 120 87 / 0.4)',
-          '--red-bg-dark': 'rgb(127 29 29 / 0.15)',
-          '--red-border-dark': 'rgb(185 28 28 / 0.4)',
-        } as React.CSSProperties}
-      />
-      {prefix && (
-        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-xs">
-          {prefix}
-        </span>
-      )}
-      {suffix && (
-        <span className="absolute right-7 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-xs">
-          {` ${suffix}`}
-        </span>
-      )}
-      {upDownButtons && onIncrement && onDecrement && (
-        <div className="absolute right-0 top-0 bottom-0 w-6 flex flex-col border-l dark:border-dark-border">
-          <button
-            type="button"
-            onClick={onIncrement}
-            className="flex-1 hover:bg-gray-100 dark:hover:bg-dark-bg/50 text-gray-600 dark:text-gray-400"
-          >
-            <svg className="w-3 h-3 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={onDecrement}
-            className="flex-1 hover:bg-gray-100 dark:hover:bg-dark-bg/50 text-gray-600 dark:text-gray-400 border-t dark:border-dark-border"
-          >
-            <svg className="w-3 h-3 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Update the AnimatedTimeInput to use the base component
-const AnimatedTimeInput = ({ 
-  value,
-  onChange,
-  onBlur,
-  onKeyDown,
-  onIncrement,
-  onDecrement,
-  className
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  onBlur: () => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onIncrement: () => void;
-  onDecrement: () => void;
-  className?: string;
-}) => {
-  return (
-    <AnimatedNumberInput
-      value={value}
-      onChange={onChange}
-      onBlur={onBlur}
-      onKeyDown={onKeyDown}
-      suffix="min"
-      upDownButtons={true}
-      onIncrement={onIncrement}
-      onDecrement={onDecrement}
-      className={className}
-    />
-  );
-};
-
 export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur, isEditable, showTimestamp = false, showTotalCost = true }: WIPTableProps) {
   const textareaRefs = useRef<{ [key: string]: HTMLTextAreaElement | null }>({});
   const [editingValues, setEditingValues] = useState<Record<string, string | number>>({});
@@ -408,21 +231,13 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
     }
   };
 
-  if (entries.length === 0) {
-    return (
-      <div className="bg-white dark:bg-dark-card rounded-lg border border-gray-200 dark:border-dark-border overflow-hidden">
-        <EmptyState />
-      </div>
-    );
-  }
-
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-border">
       <table className="min-w-full bg-white dark:bg-dark-card border-collapse text-sm">
         <thead>
           <tr className="border-b border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300">
             <th className="p-3 text-left w-[40px]"></th>
-            <th className="p-3 text-left min-w-[150px] text-xs">Client</th>
+            <th className="p-3 text-left w-[10%] min-w-[100px] text-xs">Client</th>
             <th className="p-3 text-left w-[15%] min-w-[150px] text-xs">Project</th>
             <th className="p-3 text-left w-[10%] min-w-[100px] text-xs">Partner</th>
             <th className="p-3 text-left w-[120px] text-xs">Time</th>
@@ -439,7 +254,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
               className={`group border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors duration-150
                 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-dark-bg/25' : 'bg-white dark:bg-dark-card'}`}
             >
-              <td className="p-3 align-middle">
+              <td className="p-3 align-top">
                 <button
                   onClick={() => onDelete(entry)}
                   className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 
@@ -451,24 +266,21 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   </svg>
                 </button>
               </td>
-              <td className="p-3 align-middle">
+              <td className="p-3 align-top">
                 {isEditable ? (
                   <TextAreaInput
                     value={getCurrentValue(entry, 'client') as string}
                     onChange={(value) => handleEdit(entry, 'client', value)}
                     onBlur={() => handleBlur(entry, 'client')}
                     onKeyDown={(e) => handleKeyDown(e, entry, 'client')}
-                    className="w-full p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
-                      bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 text-xs"
-                    minRows={1}
+                    className="w-full h-[34px] p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                      bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
                   />
                 ) : (
-                  <div className="py-1 px-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 rounded text-xs whitespace-pre-wrap break-words border dark:border-dark-border">
-                    {entry.client}
-                  </div>
+                  <div className="py-1 px-1.5 whitespace-pre-wrap break-words text-xs h-[34px] overflow-hidden">{entry.client}</div>
                 )}
               </td>
-              <td className="p-3 align-middle">
+              <td className="p-3 align-top">
                 {isEditable ? (
                   <TextAreaInput
                     value={getCurrentValue(entry, 'project') as string}
@@ -482,111 +294,161 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   <div className="py-1 px-1.5 whitespace-pre-wrap break-words text-xs">{entry.project}</div>
                 )}
               </td>
-              <td className="p-3 align-middle">
+              <td className="p-3 align-top">
                 {isEditable ? (
                   <TextAreaInput
                     value={getCurrentValue(entry, 'partner') as string}
                     onChange={(value) => handleEdit(entry, 'partner', value)}
                     onBlur={() => handleBlur(entry, 'partner')}
                     onKeyDown={(e) => handleKeyDown(e, entry, 'partner')}
-                    className="w-full p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                    className="w-full h-[34px] p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
                       bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
                   />
                 ) : (
-                  <div className="py-1 px-1.5 whitespace-pre-wrap break-words text-xs">{entry.partner}</div>
+                  <div className="py-1 px-1.5 whitespace-pre-wrap break-words text-xs h-[34px] overflow-hidden">{entry.partner}</div>
                 )}
               </td>
-              <td className="p-3 align-middle min-w-[100px]">
+              <td className="p-3 align-top">
                 {isEditable ? (
-                  <AnimatedTimeInput
-                    value={getCurrentValue(entry, 'timeInMinutes') as number ?? getTimeInMinutes(entry)}
-                    onChange={(minutes) => {
-                      handleEdit(entry, 'timeInMinutes', minutes);
-                      handleEdit(entry, 'hours', minutes / 60);
-                    }}
-                    onBlur={() => handleBlur(entry, 'timeInMinutes')}
-                    onKeyDown={(e) => handleKeyDown(e, entry, 'timeInMinutes')}
-                    onIncrement={() => {
-                      const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
-                      const newValue = minutes + 1;
-                      const updatedEntry = {
-                        ...entry,
-                        timeInMinutes: newValue,
-                        hours: newValue / 60
-                      };
-                      setEditingValues(prev => ({
-                        ...prev,
-                        [`${entry.id}-timeInMinutes`]: newValue,
-                        [`${entry.id}-hours`]: newValue / 60
-                      }));
-                      onEntryUpdate(updatedEntry);
-                    }}
-                    onDecrement={() => {
-                      const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
-                      if (minutes > 0) {
-                        const newValue = minutes - 1;
-                        const updatedEntry = {
-                          ...entry,
-                          timeInMinutes: newValue,
-                          hours: newValue / 60
-                        };
-                        setEditingValues(prev => ({
-                          ...prev,
-                          [`${entry.id}-timeInMinutes`]: newValue,
-                          [`${entry.id}-hours`]: newValue / 60
-                        }));
-                        onEntryUpdate(updatedEntry);
-                      }
-                    }}
-                    className="min-w-[80px]"
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={getCurrentValue(entry, 'timeInMinutes') ?? getTimeInMinutes(entry)}
+                      onChange={(e) => {
+                        const minutes = parseInt(e.target.value) || 0;
+                        handleEdit(entry, 'timeInMinutes', minutes);
+                        handleEdit(entry, 'hours', minutes / 60);
+                      }}
+                      onBlur={() => handleBlur(entry, 'timeInMinutes')}
+                      onKeyDown={(e) => handleKeyDown(e, entry, 'timeInMinutes')}
+                      className="w-full h-[34px] p-2 pr-[45px] min-w-[70px] border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                        bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-left pl-2"
+                      min="0"
+                    />
+                    <span className="absolute right-[30px] top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-xs">
+                      min
+                    </span>
+                    <div className="absolute right-0 top-0 bottom-0 w-6 flex flex-col border-l dark:border-dark-border">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
+                          const newValue = minutes + 1;
+                          const updatedEntry = {
+                            ...entry,
+                            timeInMinutes: newValue,
+                            hours: newValue / 60
+                          };
+                          setEditingValues(prev => ({
+                            ...prev,
+                            [`${entry.id}-timeInMinutes`]: newValue,
+                            [`${entry.id}-hours`]: newValue / 60
+                          }));
+                          onEntryUpdate(updatedEntry);
+                        }}
+                        className="flex-1 hover:bg-gray-100 dark:hover:bg-dark-bg/50 text-gray-600 dark:text-gray-400"
+                      >
+                        <svg className="w-3 h-3 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
+                          if (minutes > 0) {
+                            const newValue = minutes - 1;
+                            const updatedEntry = {
+                              ...entry,
+                              timeInMinutes: newValue,
+                              hours: newValue / 60
+                            };
+                            setEditingValues(prev => ({
+                              ...prev,
+                              [`${entry.id}-timeInMinutes`]: newValue,
+                              [`${entry.id}-hours`]: newValue / 60
+                            }));
+                            onEntryUpdate(updatedEntry);
+                          }
+                        }}
+                        className="flex-1 hover:bg-gray-100 dark:hover:bg-dark-bg/50 text-gray-600 dark:text-gray-400 border-t dark:border-dark-border"
+                      >
+                        <svg className="w-3 h-3 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="py-1 px-2 text-xs">{formatTime(getTimeInMinutes(entry) / 60)}</div>
                 )}
               </td>
-              <td className="p-3 align-middle min-w-[120px]">
+              <td className="p-3 align-top">
                 {isEditable ? (
-                  <AnimatedNumberInput
-                    value={getCurrentValue(entry, 'hourlyRate') as number}
-                    onChange={(value) => handleEdit(entry, 'hourlyRate', value)}
-                    onBlur={() => handleBlur(entry, 'hourlyRate')}
-                    onKeyDown={(e) => handleKeyDown(e, entry, 'hourlyRate')}
-                    prefix="$"
-                    upDownButtons={true}
-                    onIncrement={() => {
-                      const currentValue = getCurrentValue(entry, 'hourlyRate') as number;
-                      const newValue = currentValue + 1;
-                      handleEdit(entry, 'hourlyRate', newValue);
-                      onEntryUpdate({
-                        ...entry,
-                        hourlyRate: newValue
-                      });
-                    }}
-                    onDecrement={() => {
-                      const currentValue = getCurrentValue(entry, 'hourlyRate') as number;
-                      if (currentValue > 0) {
-                        const newValue = currentValue - 1;
-                        handleEdit(entry, 'hourlyRate', newValue);
-                        onEntryUpdate({
-                          ...entry,
-                          hourlyRate: newValue
-                        });
-                      }
-                    }}
-                    className="min-w-[80px]"
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={getCurrentValue(entry, 'hourlyRate') as number}
+                      onChange={(e) => handleEdit(entry, 'hourlyRate', parseFloat(e.target.value) || 0)}
+                      onBlur={() => handleBlur(entry, 'hourlyRate')}
+                      onKeyDown={(e) => handleKeyDown(e, entry, 'hourlyRate')}
+                      className="w-full h-[34px] p-2 pl-5 pr-8 min-w-[80px] max-w-[100px] border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                        bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right"
+                    />
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-xs">
+                      $
+                    </span>
+                    <div className="absolute right-0 top-0 bottom-0 w-6 flex flex-col border-l dark:border-dark-border">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentValue = getCurrentValue(entry, 'hourlyRate') as number;
+                          const newValue = currentValue + 1;
+                          handleEdit(entry, 'hourlyRate', newValue);
+                          onEntryUpdate({
+                            ...entry,
+                            hourlyRate: newValue
+                          });
+                        }}
+                        className="flex-1 hover:bg-gray-100 dark:hover:bg-dark-bg/50 text-gray-600 dark:text-gray-400"
+                      >
+                        <svg className="w-4 h-4 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentValue = getCurrentValue(entry, 'hourlyRate') as number;
+                          if (currentValue > 0) {
+                            const newValue = currentValue - 1;
+                            handleEdit(entry, 'hourlyRate', newValue);
+                            onEntryUpdate({
+                              ...entry,
+                              hourlyRate: newValue
+                            });
+                          }
+                        }}
+                        className="flex-1 hover:bg-gray-100 dark:hover:bg-dark-bg/50 text-gray-600 dark:text-gray-400 border-t dark:border-dark-border"
+                      >
+                        <svg className="w-4 h-4 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="py-1 px-2 flex items-center text-xs">{formatCurrency(entry.hourlyRate)}</div>
+                  <div className="py-1 px-2 h-[34px] flex items-center text-xs">{formatCurrency(entry.hourlyRate)}</div>
                 )}
               </td>
               {showTotalCost && (
-                <td className="p-3 align-middle">
-                  <div className="py-1 px-2 flex items-center font-medium text-gray-900 dark:text-gray-100 text-xs">
+                <td className="p-3 align-top">
+                  <div className="py-1 px-2 h-[34px] flex items-center font-medium text-gray-900 dark:text-gray-100 text-xs">
                     {formatCurrency((getTimeInMinutes(entry) / 60) * entry.hourlyRate)}
                   </div>
                 </td>
               )}
-              <td className="p-3 align-middle">
+              <td className="p-3 align-top">
                 {isEditable ? (
                   <div className="relative">
                     <input

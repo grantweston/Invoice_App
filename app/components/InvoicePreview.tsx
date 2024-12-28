@@ -1,25 +1,38 @@
 "use client";
 
-import { useGoogleDocSync } from "../hooks/useGoogleDocSync";
+import { useEffect, useRef } from 'react';
 
 interface InvoicePreviewProps {
-  docUrl: string;
+  html: string;
+  isLoading?: boolean;
 }
 
-// This component shows a preview of the invoice Google Doc.
-// In a real scenario, it might embed an iframe or render doc content if allowed.
-// The useGoogleDocSync hook would handle real-time updates to the doc.
-export default function InvoicePreview({ docUrl }: InvoicePreviewProps) {
-  // Initialize syncing logic (currently just a placeholder)
-  useGoogleDocSync(docUrl);
+export default function InvoicePreview({ html, isLoading = false }: InvoicePreviewProps) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    if (iframeRef.current && html) {
+      const doc = iframeRef.current.contentDocument;
+      if (doc) {
+        doc.open();
+        doc.write(html);
+        doc.close();
+      }
+    }
+  }, [html]);
 
   return (
-    <div className="border border-gray-200 p-4 rounded bg-white">
-      <p className="mb-2 text-sm text-gray-600">Invoice Document Preview:</p>
-      {/* Placeholder area where the doc would be shown */}
-      <div className="w-full h-64 bg-gray-50 flex items-center justify-center">
-        <span className="text-gray-400">[Google Doc Preview Placeholder]</span>
-      </div>
+    <div className="relative w-full h-full min-h-[600px] bg-white rounded-lg shadow-lg">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      )}
+      <iframe
+        ref={iframeRef}
+        className="w-full h-full"
+        title="Invoice Preview"
+      />
     </div>
   );
 }

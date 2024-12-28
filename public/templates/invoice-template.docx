@@ -1,0 +1,41 @@
+[Company Logo]
+
+INVOICE
+
+Invoice #: {{invoice_number}}
+Date: {{invoice_date}}
+Due Date: {{due_date}}
+
+Bill To:
+{{client_name}}
+{{client_address}}
+{{client_email}}
+
+Project Summary:
+{{#projects}}
+Project: {{name}}
+{{summary}}
+
+Detailed Time Entries:
+{{#entries}}
+• {{description}}
+  Hours: {{hours}} @ {{rate}}/hr = {{amount}}
+{{/entries}}
+
+Project Total: {{total_hours}} hours = {{total_amount}}
+----------------------------------------
+{{/projects}}
+
+Total Amount Due: {{total_amount}}
+
+Payment Terms:
+- Payment is due by {{due_date}}
+- Please include invoice number in payment reference
+- Make checks payable to [Your Company Name]
+
+Additional Notes:
+{{#additional_notes}}
+• {{.}}
+{{/additional_notes}}
+
+Thank you for your business! 

@@ -4,7 +4,7 @@ import { analyze } from '@/src/integrations/gemini/geminiService';
 interface AggregationResult {
   shouldMerge: boolean;
   confidence: number;
-  explanation: string;
+  explanation?: string;
 }
 
 // Add helper function for string similarity
@@ -107,97 +107,91 @@ function normalizePartnerName(name: string): string {
 }
 
 // Add helper function to check if projects are effectively the same
-function isSameProject(project1: string, project2: string): boolean {
+async function isSameProject(project1: string, project2: string): Promise<boolean> {
   console.log(`\n📊 Comparing projects:
     Project 1: "${project1}"
     Project 2: "${project2}"`);
 
-  const norm1 = normalizeProjectName(project1);
-  const norm2 = normalizeProjectName(project2);
+  // Use Gemini to compare projects
+  const prompt = `
+  Compare these two project names and determine if they refer to the same project or work.
+  Consider common variations, technical terminology, and project phases.
   
-  // Direct match after normalization
-  if (norm1 === norm2) {
-    console.log('✅ Exact match after normalization');
-    return true;
-  }
+  Project 1: "${project1}"
+  Project 2: "${project2}"
   
-  // Check if one contains the other
-  if (norm1.includes(norm2) || norm2.includes(norm1)) {
-    console.log('✅ One name contains the other');
-    return true;
-  }
+  Consider:
+  1. Are these different representations of the same project?
+  2. Could one be a phase or component of the other?
+  3. Are these common variations or abbreviations in software/business context?
+  4. Do they represent the same type of work (e.g., "Tax Prep" and "Tax Preparation")?
   
-  // Check for common variations
-  const variations1 = [
-    norm1,
-    norm1.replace(/\s/g, ''),  // No spaces
-    norm1.replace(/[aeiou]/g, '') // No vowels
-  ];
-  
-  const variations2 = [
-    norm2,
-    norm2.replace(/\s/g, ''),
-    norm2.replace(/[aeiou]/g, '')
-  ];
-  
-  console.log(`Checking variations:
-    Project 1: [${variations1.join(', ')}]
-    Project 2: [${variations2.join(', ')}]`);
-  
-  // Check if any variation matches
-  for (const v1 of variations1) {
-    for (const v2 of variations2) {
-      if (v1 === v2 || v1.includes(v2) || v2.includes(v1)) {
-        console.log(`✅ Match found in variations: "${v1}" ≈ "${v2}"`);
-        return true;
-      }
+  Respond with just true or false.
+  `;
+
+  try {
+    const response = await analyze(prompt);
+    const isSame = response.trim().toLowerCase() === 'true';
+    
+    if (isSame) {
+      console.log(`✅ Project match (AI analysis): "${project1}" ≈ "${project2}"`);
+    } else {
+      console.log(`❌ Project mismatch (AI analysis): "${project1}" ≠ "${project2}"`);
     }
+    
+    return isSame;
+  } catch (error) {
+    console.error("Error comparing projects with AI:", error);
+    // Fallback to basic comparison if AI fails
+    const norm1 = normalizeProjectName(project1);
+    const norm2 = normalizeProjectName(project2);
+    return norm1 === norm2 || norm1.includes(norm2) || norm2.includes(norm1);
   }
-  
-  // Calculate similarity
-  const similarity = getStringSimilarity(norm1, norm2);
-  console.log(`📈 String similarity: ${similarity.toFixed(2)}`);
-  
-  const isSimilar = similarity > 0.7;
-  console.log(isSimilar ? '✅ Similar enough to merge' : '❌ Not similar enough to merge');
-  
-  return isSimilar;
 }
 
 // Add helper function to check if clients are effectively the same
-function isSameClient(client1: string, client2: string): boolean {
+async function isSameClient(client1: string, client2: string): Promise<boolean> {
   // If either is Unknown, they can be merged
   if (client1 === "Unknown" || client2 === "Unknown") {
     console.log(`✅ Client match (one unknown): "${client1}" ≈ "${client2}"`);
     return true;
   }
 
-  const norm1 = normalizeClientName(client1);
-  const norm2 = normalizeClientName(client2);
+  // Use Gemini to compare clients
+  const prompt = `
+  Compare these two client names and determine if they refer to the same client.
+  Consider common variations, abbreviations, and business relationships.
   
-  // Direct match after normalization
-  if (norm1 === norm2) {
-    console.log(`✅ Client match (exact): "${client1}" = "${client2}"`);
-    return true;
+  Client 1: "${client1}"
+  Client 2: "${client2}"
+  
+  Consider:
+  1. Are these different representations of the same client?
+  2. Could one be a subsidiary or division of the other?
+  3. Are these common variations or abbreviations?
+  4. For individual names, could these be the same person with name variations?
+  
+  Respond with just true or false.
+  `;
+
+  try {
+    const response = await analyze(prompt);
+    const isSame = response.trim().toLowerCase() === 'true';
+    
+    if (isSame) {
+      console.log(`✅ Client match (AI analysis): "${client1}" ≈ "${client2}"`);
+    } else {
+      console.log(`❌ Client mismatch (AI analysis): "${client1}" ≠ "${client2}"`);
+    }
+    
+    return isSame;
+  } catch (error) {
+    console.error("Error comparing clients with AI:", error);
+    // Fallback to basic comparison if AI fails
+    const norm1 = normalizeClientName(client1);
+    const norm2 = normalizeClientName(client2);
+    return norm1 === norm2 || norm1.includes(norm2) || norm2.includes(norm1);
   }
-  
-  // Check if one contains the other
-  if (norm1.includes(norm2) || norm2.includes(norm1)) {
-    console.log(`✅ Client match (contains): "${client1}" ≈ "${client2}"`);
-    return true;
-  }
-  
-  // Calculate similarity
-  const similarity = getStringSimilarity(norm1, norm2);
-  const isSimilar = similarity > 0.7;
-  
-  if (isSimilar) {
-    console.log(`✅ Client match (similarity ${similarity.toFixed(2)}): "${client1}" ≈ "${client2}"`);
-  } else {
-    console.log(`❌ Client mismatch (similarity ${similarity.toFixed(2)}): "${client1}" ≠ "${client2}"`);
-  }
-  
-  return isSimilar;
 }
 
 // Add helper function to check if partners are effectively the same
@@ -230,119 +224,61 @@ function isSamePartner(partner1: string, partner2: string): boolean {
   return isSimilar;
 }
 
-export async function shouldEntriesBeMerged(entry1: WIPEntry, entry2: WIPEntry): Promise<AggregationResult> {
-  console.log(`\n🔄 Comparing entries for merging:`);
-  console.log(`Entry 1: ${entry1.client} / ${entry1.project} / ${entry1.partner} - ${entry1.description}`);
-  console.log(`Entry 2: ${entry2.client} / ${entry2.project} / ${entry2.partner} - ${entry2.description}`);
-
-  // 1. First check client names
-  if (!isSameClient(entry1.client, entry2.client)) {
-    console.log('❌ Different clients - stopping comparison');
-    return { shouldMerge: false, confidence: 1, explanation: "Different clients" };
-  }
-  console.log('✅ Client names match or can be merged');
-
-  // 2. Then check project names
-  if (!isSameProject(entry1.project, entry2.project)) {
-    console.log('❌ Different projects - stopping comparison');
-    return { shouldMerge: false, confidence: 1, explanation: "Different projects" };
-  }
-  console.log('✅ Project names match');
-
-  // 3. Then check partner names with flexible matching
-  if (!isSamePartner(entry1.partner, entry2.partner)) {
-    console.log('❌ Different partners - stopping comparison');
-    return { shouldMerge: false, confidence: 1, explanation: "Different partners" };
-  }
-  console.log('✅ Partner names match');
-
-  // 4. Check time proximity
-  const timeDiffMinutes = Math.abs(entry2.id - entry1.id) / (1000 * 60);
-  console.log(`⏱️ Time difference: ${timeDiffMinutes.toFixed(1)} minutes`);
-
-  // If entries are more than 30 minutes apart, require higher similarity
-  const timeThreshold = timeDiffMinutes <= 30 ? 0.3 : 0.7;
-
-  // 5. Compare descriptions
-  const similarity = getStringSimilarity(entry1.description, entry2.description);
-  console.log(`📊 Description similarity: ${similarity.toFixed(2)}`);
-
-  // If descriptions are identical or very similar
-  if (similarity > 0.8) {
-    console.log('✅ Very similar descriptions');
-    return {
-      shouldMerge: true,
-      confidence: similarity,
-      explanation: "Very similar descriptions"
-    };
-  }
-
-  // If entries are close in time and have moderate similarity
-  if (timeDiffMinutes < 30 && similarity > timeThreshold) {
-    console.log('✅ Recent entries with moderate similarity');
-    return {
-      shouldMerge: true,
-      confidence: 0.8,
-      explanation: "Recent entries with similar context"
-    };
-  }
-
-  // For less obvious cases, use Gemini
-  const prompt = `
-  Analyze if these two work entries are part of the same ongoing work session.
-  
-  Entry 1:
-  Client: "${entry1.client}"
-  Project: "${entry1.project}"
-  Partner: "${entry1.partner}"
-  Description: "${entry1.description}"
-  
-  Entry 2:
-  Client: "${entry2.client}"
-  Project: "${entry2.project}"
-  Partner: "${entry2.partner}"
-  Description: "${entry2.description}"
-  
-  Time difference: ${timeDiffMinutes} minutes
-  Description similarity score: ${similarity}
-  
-  Consider:
-  1. The entries have matching client, project, and partner names
-  2. Are these entries describing work on the same task/feature?
-  3. Do they appear to be continuous work or related updates?
-  4. Would these typically be tracked as a single work session?
-  5. Given the ${timeDiffMinutes} minute time difference, is this likely the same session?
-  
-  Respond in JSON format:
-  {
-    "shouldMerge": boolean,
-    "confidence": number (0-1),
-    "explanation": "brief reason"
-  }
-  `;
-
+// Update shouldEntriesBeMerged to handle async comparisons
+export async function shouldEntriesBeMerged(entry1: WIPEntry, entry2: WIPEntry): Promise<{ shouldMerge: boolean; confidence: number }> {
   try {
+    const prompt = `
+    Compare these two work entries and determine if they represent the same project/task:
+
+    Entry 1:
+    - Client: "${entry1.client}"
+    - Project: "${entry1.project}"
+    - Partner: "${entry1.partner}"
+
+    Entry 2:
+    - Client: "${entry2.client}"
+    - Project: "${entry2.project}"
+    - Partner: "${entry2.partner}"
+
+    Consider:
+    1. Are the client names referring to the same client? (Consider variations, abbreviations, and typos)
+    2. Are the project names referring to the same project? (Consider task descriptions and context)
+    3. Are the partner names referring to the same person? (Consider variations and typos)
+
+    Respond in JSON format:
+    {
+      "are_same": boolean,
+      "confidence": number (0-1),
+      "explanation": string,
+      "matches": {
+        "client_match": boolean,
+        "project_match": boolean,
+        "partner_match": boolean
+      }
+    }
+    `;
+
     const response = await analyze(prompt);
-    const result = JSON.parse(response);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
+    }
+
+    const analysis = JSON.parse(jsonMatch[0]);
+
+    // Return true only if all three fields match with high confidence
     return {
-      shouldMerge: result.shouldMerge,
-      confidence: result.confidence,
-      explanation: result.explanation
+      shouldMerge: analysis.are_same && analysis.matches.client_match && analysis.matches.project_match && analysis.matches.partner_match,
+      confidence: analysis.confidence
     };
   } catch (error) {
-    console.error("Error analyzing entries:", error);
-    // If Gemini fails but entries are close in time, use time-based merging
-    if (timeDiffMinutes < 10) {
-      return {
-        shouldMerge: true,
-        confidence: 0.7,
-        explanation: "Recent entries, falling back to time-based merging"
-      };
-    }
-    return { 
-      shouldMerge: false, 
-      confidence: 0,
-      explanation: "Error in analysis" 
+    console.error('Error comparing entries:', error);
+    // Fall back to basic string comparison if Gemini fails
+    return {
+      shouldMerge: entry1.client === entry2.client && 
+                   entry1.project === entry2.project && 
+                   entry1.partner === entry2.partner,
+      confidence: 1.0
     };
   }
 }
@@ -490,6 +426,9 @@ export async function mergeEntryGroup(group: WIPEntry[]): Promise<WIPEntry> {
     hours: totalMinutes / 60,
     description: finalDescription,
     hourlyRate: mostRecentEntry.hourlyRate,
-    associatedDailyIds: allAssociatedDailyIds
+    associatedDailyIds: allAssociatedDailyIds,
+    subEntries: mostRecentEntry.subEntries || [],
+    startDate: sortedEntries[0].startDate,
+    lastWorkedDate: mostRecentEntry.lastWorkedDate
   };
 } 
