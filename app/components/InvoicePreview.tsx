@@ -2,85 +2,87 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { getFile } from '@/src/services/fileStorage';
-import * as docx from 'docx-preview';
+import { useInvoiceStore } from '@/src/stores/invoiceStore';
+import * as pdfjsLib from 'pdfjs-dist';
+import { PDFDocumentProxy } from 'pdfjs-dist';
 
 interface InvoicePreviewProps {
   templateId?: string;
   isLoading?: boolean;
 }
 
+// Initialize PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
 export default function InvoicePreview({ templateId, isLoading = false }: InvoicePreviewProps) {
   const [error, setError] = useState<string | null>(null);
-  const [scale, setScale] = useState(1);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [highlightPositions, setHighlightPositions] = useState<Array<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text: string;
+  }>>([]);
+  const selectedTemplate = useInvoiceStore(state => state.templates.find(t => t.id === templateId));
 
-  // Add highlighting to placeholders after render
-  const highlightPlaceholders = () => {
-    if (!previewRef.current) {
-      console.log('🔍 No preview ref found');
-      return;
-    }
-    console.log('🔍 Starting placeholder highlighting');
+  // Function to scan for placeholders in the PDF viewer
+  const scanForPlaceholders = async (pdfUrl: string) => {
+    console.log('🔍 Starting PDF scan');
+    
+    try {
+      // Load the PDF document
+      const loadingTask = pdfjsLib.getDocument(pdfUrl);
+      const pdf = await loadingTask.promise;
+      console.log('📄 PDF loaded, pages:', pdf.numPages);
 
-    // Find all text-containing elements
-    const elements = previewRef.current.querySelectorAll('p, span');
-    console.log('🔍 Found elements:', elements.length);
-
-    elements.forEach((element) => {
-      const text = element.textContent || '';
-      if (!text.includes('{')) return;
-
-      // Create a temporary container
-      const temp = document.createElement('div');
-      temp.innerHTML = text.replace(/(\{[^}]+\})/g, (match) => {
-        return `<mark class="placeholder-highlight" style="
-          background-color: rgba(22, 163, 74, 0.1);
-          border: 1px solid rgba(22, 163, 74, 0.3);
-          border-radius: 3px;
-          padding: 0 2px;
-          margin: 0 1px;
-          color: rgb(22, 163, 74);
-          font-family: inherit;
-          font-size: inherit;
-          display: inline-block;
-        ">${match}</mark>`;
-      });
-
-      // Only replace if we found and highlighted something
-      if (temp.innerHTML !== text) {
-        element.innerHTML = temp.innerHTML;
+      const positions: Array<{x: number; y: number; width: number; height: number; text: string}> = [];
+      
+      // Process each page
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        // Get page viewport for scaling
+        const viewport = page.getViewport({ scale: 1.0 });
+        const scale = containerRef.current ? containerRef.current.clientWidth / viewport.width : 1;
+        
+        // Look for placeholders in text items
+        textContent.items.forEach((item: any) => {
+          const text = item.str;
+          const matches = text.match(/\{[^}]+\}/g);
+          
+          if (matches) {
+            console.log(`✨ Found placeholders in text: "${text}"`, matches);
+            
+            // Convert PDF coordinates to screen coordinates
+            const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+            const width = item.width * scale;
+            const height = (item.height || 20) * scale;
+            
+            const position = {
+              x: x * scale,
+              y: (viewport.height - y) * scale, // Flip Y coordinate
+              width,
+              height,
+              text: matches.join(', ')
+            };
+            
+            console.log('📍 Adding highlight at:', position);
+            positions.push(position);
+          }
+        });
       }
-    });
-  };
 
-  // Calculate scale based on container dimensions
-  const updateScale = () => {
-    if (containerRef.current && previewRef.current) {
-      const container = containerRef.current;
-      const preview = previewRef.current;
+      console.log('✅ Found positions for highlights:', positions);
+      setHighlightPositions(positions);
       
-      // Get the natural dimensions of the rendered document
-      const docWidth = preview.scrollWidth;
-      const docHeight = preview.scrollHeight;
-      
-      // Calculate scales for both dimensions
-      const widthScale = (container.clientWidth - 64) / docWidth;
-      const heightScale = (container.clientHeight - 64) / docHeight;
-      
-      // Use the smaller scale to ensure document fits
-      const newScale = Math.min(widthScale, heightScale, 1);
-      setScale(newScale);
+    } catch (error) {
+      console.error('❌ Error scanning PDF:', error);
     }
   };
-
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver(updateScale);
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-    return () => resizeObserver.disconnect();
-  }, []);
 
   useEffect(() => {
     if (!templateId) {
@@ -95,41 +97,45 @@ export default function InvoicePreview({ templateId, isLoading = false }: Invoic
       try {
         console.log('📘 Starting template load process');
 
-        const fileData = await getFile(templateId);
-        if (!isMounted) return;
-        
-        console.log('📘 File data received:', !!fileData, 'Length:', fileData?.byteLength);
-
-        if (!fileData) {
-          console.error('📘 Template not found in storage');
-          throw new Error('Template not found');
-        }
-
-        // Create blob for the DOCX file
-        const blob = new Blob([fileData], { 
-          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-        });
-        console.log('📘 Created blob for DOCX file');
-
-        // Clear previous content
-        if (previewRef.current && isMounted) {
-          console.log('📘 Clearing previous content');
-          previewRef.current.innerHTML = '';
-        }
-
-        // Render the document using docx-preview
-        if (isMounted) {
-          console.log('📘 Starting docx-preview render');
-          await docx.renderAsync(blob, previewRef.current!);
-          console.log('📘 Render complete');
-
-          // Add a small delay to ensure the content is fully rendered
-          setTimeout(() => {
-            if (isMounted) {
-              highlightPlaceholders();
-              updateScale();
+        // First try to get the preview
+        let previewResponse = await fetch(`/api/preview-template/${templateId}`);
+        if (!previewResponse.ok) {
+          // If preview fails, try to force a re-upload from IndexedDB
+          console.log('📘 Preview failed, attempting to re-sync template');
+          const fileData = await getFile(templateId);
+          if (fileData) {
+            const formData = new FormData();
+            formData.append('file', new Blob([fileData], { 
+              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+            }), `${templateId}.docx`);
+            
+            const uploadResponse = await fetch('/api/upload-template', {
+              method: 'POST',
+              body: formData
+            });
+            
+            if (uploadResponse.ok) {
+              // Try preview again after re-upload
+              previewResponse = await fetch(`/api/preview-template/${templateId}`);
+              if (!previewResponse.ok) {
+                throw new Error('Failed to load template preview after re-sync');
+              }
+            } else {
+              throw new Error('Failed to re-sync template');
             }
-          }, 100);
+          } else {
+            throw new Error('Template not found in storage');
+          }
+        }
+
+        // Create blob URL for the PDF
+        const pdfBlob = await previewResponse.blob();
+        const url = URL.createObjectURL(pdfBlob);
+        
+        if (isMounted) {
+          setPdfUrl(url);
+          // Force a scan after setting the URL
+          setTimeout(scanForPlaceholders, 1000);
         }
       } catch (err) {
         if (!isMounted) return;
@@ -142,47 +148,35 @@ export default function InvoicePreview({ templateId, isLoading = false }: Invoic
 
     return () => {
       isMounted = false;
-      console.log('📘 Cleaning up preview for templateId:', templateId);
-      if (previewRef.current) {
-        previewRef.current.innerHTML = '';
+      // Clean up blob URL
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
       }
     };
   }, [templateId]);
 
-  // Add styles for placeholder highlighting
+  // Effect to handle iframe load and scanning for placeholders
   useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      .placeholder-highlight {
-        background-color: rgba(22, 163, 74, 0.1) !important;
-        border: 1px solid rgba(22, 163, 74, 0.3) !important;
-        border-radius: 3px !important;
-        padding: 0 2px !important;
-        margin: 0 1px !important;
-        color: rgb(22, 163, 74) !important;
-        display: inline !important;
-        position: relative !important;
-        z-index: 1 !important;
-      }
-      .placeholder-highlight * {
-        color: rgb(22, 163, 74) !important;
-      }
-      @media (prefers-color-scheme: dark) {
-        .placeholder-highlight {
-          background-color: rgba(34, 197, 94, 0.1) !important;
-          border-color: rgba(34, 197, 94, 0.3) !important;
-          color: rgb(34, 197, 94) !important;
-        }
-        .placeholder-highlight * {
-          color: rgb(34, 197, 94) !important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      document.head.removeChild(style);
+    if (!iframeRef.current || !selectedTemplate) {
+      console.log('⏳ Waiting for iframe and template...');
+      return;
+    }
+    
+    console.log('🎯 Setting up iframe load handler');
+    const iframe = iframeRef.current;
+    iframe.onload = () => {
+      console.log('🌟 Iframe loaded, starting scan');
+      scanForPlaceholders(pdfUrl);
     };
-  }, []);
+
+    // Also try scanning immediately
+    scanForPlaceholders(pdfUrl);
+
+    return () => {
+      console.log('🧹 Cleaning up iframe load handler');
+      iframe.onload = null;
+    };
+  }, [selectedTemplate, pdfUrl]);
 
   if (isLoading) {
     return (
@@ -233,20 +227,49 @@ export default function InvoicePreview({ templateId, isLoading = false }: Invoic
     );
   }
 
+  console.log('🎨 Current highlight positions:', highlightPositions);
+
   return (
     <div 
-      ref={containerRef} 
-      className="h-full bg-white relative flex flex-col items-center p-8 overflow-auto"
+      ref={containerRef}
+      className="h-full bg-white"
     >
-      <div 
-        ref={previewRef}
-        className="docx-preview"
-        style={{
-          transform: `scale(${scale})`,
-          transformOrigin: 'top center',
-          marginTop: '1rem'
-        }}
-      />
+      {pdfUrl && (
+        <div className="relative w-full h-full overflow-auto p-8">
+          <iframe
+            ref={iframeRef}
+            src={`${pdfUrl}#view=FitH`}
+            className="w-full h-full border-0"
+            title="Template Preview"
+          />
+          <div 
+            className="absolute inset-8 pointer-events-none"
+            style={{
+              position: 'absolute',
+              overflow: 'hidden'
+            }}
+          >
+            {highlightPositions.map((pos, index) => (
+              <div
+                key={index}
+                className="pdf-preview-highlight"
+                style={{
+                  position: 'absolute',
+                  left: `${pos.x}px`,
+                  top: `${pos.y}px`,
+                  width: `${pos.width}px`,
+                  height: `${pos.height}px`,
+                  backgroundColor: 'rgba(255, 255, 0, 0.3)',
+                  border: '2px solid rgba(255, 200, 0, 0.5)',
+                  pointerEvents: 'auto',
+                  zIndex: 1000
+                }}
+                title={pos.text}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

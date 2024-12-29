@@ -257,20 +257,6 @@ export default function GenerateInvoicePage() {
         {selectedTemplate && (
           <div className="h-full p-6 bg-gray-50 dark:bg-[#1e1e1e] animate-fade-in">
             <div className="h-full">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Template Preview</h2>
-                <button
-                  onClick={fillTemplate}
-                  disabled={isGenerating}
-                  className={`px-4 py-2 rounded-lg text-white transition-colors ${
-                    isGenerating
-                      ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700'
-                  }`}
-                >
-                  {isGenerating ? 'Generating...' : 'Fill Template'}
-                </button>
-              </div>
               <InvoicePreview
                 templateId={selectedTemplate.id}
                 isLoading={isGenerating}

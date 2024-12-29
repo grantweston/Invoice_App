@@ -291,3 +291,43 @@ html, body {
 .animate-fade-in {
   animation: fadeIn 0.5s ease-in-out;
 }
+
+/* PDF Preview Overlay Styles */
+.pdf-preview-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pdf-preview-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.pdf-preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pdf-preview-highlight {
+  position: absolute;
+  background-color: rgba(255, 255, 0, 0.3);
+  border: 1px solid rgba(255, 200, 0, 0.5);
+  transition: background-color 0.2s ease;
+  pointer-events: auto;
+  cursor: help;
+  transform-origin: top left;
+  z-index: 1000;
+}
+
+.pdf-preview-highlight:hover {
+  background-color: rgba(255, 255, 0, 0.5);
+  z-index: 1001;
+}

@@ -1,79 +1,70 @@
-import mammoth from 'mammoth';
-import puppeteer from 'puppeteer';
+import { platform } from 'os';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { v4 as uuidv4 } from 'uuid';
+
+const execAsync = promisify(exec);
+
+// Get the LibreOffice executable path based on platform
+const getLibreOfficePath = async () => {
+  if (platform() === 'darwin') { // macOS
+    const path = '/Applications/LibreOffice.app/Contents/MacOS/soffice';
+    try {
+      await fs.access(path, fs.constants.X_OK);
+      return path;
+    } catch (error) {
+      console.error('LibreOffice not found at expected path:', path);
+      throw new Error('LibreOffice not found. Please ensure it is installed at the correct location.');
+    }
+  }
+  return 'libreoffice'; // Default for other platforms
+};
+
+// Ensure temp directory exists
+const TEMP_DIR = path.join(process.cwd(), 'temp');
+fs.mkdir(TEMP_DIR, { recursive: true }).catch(console.error);
 
 export async function convertDocxToPdf(docxBuffer: Buffer): Promise<Buffer> {
   try {
-    // Convert DOCX to HTML
-    const { value: html } = await mammoth.convertToHtml({ buffer: docxBuffer });
+    // Get and verify LibreOffice path
+    const libreofficePath = await getLibreOfficePath();
+    console.log('Using LibreOffice at:', libreofficePath);
 
-    // Add some basic styling
-    const styledHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              line-height: 1.6;
-              padding: 40px;
-              color: #333;
-              max-width: 800px;
-              margin: 0 auto;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 20px 0;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 12px;
-              text-align: left;
-            }
-            th {
-              background-color: #f8f9fa;
-            }
-            @page {
-              margin: 20px;
-            }
-          </style>
-        </head>
-        <body>
-          ${html}
-        </body>
-      </html>
-    `;
+    // Create temporary files
+    const tempId = uuidv4();
+    const inputPath = path.join(TEMP_DIR, `${tempId}.docx`);
+    const outputPath = path.join(TEMP_DIR, `${tempId}.pdf`);
 
-    // Launch browser
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox']
-    });
+    // Write the input file
+    await fs.writeFile(inputPath, docxBuffer);
 
-    try {
-      // Create new page
-      const page = await browser.newPage();
-      await page.setContent(styledHtml, { waitUntil: 'networkidle0' });
+    // Convert using LibreOffice
+    const command = `"${libreofficePath}" --headless --convert-to pdf --outdir "${TEMP_DIR}" "${inputPath}"`;
+    console.log('Executing command:', command);
+    
+    const { stdout, stderr } = await execAsync(command);
+    console.log('Conversion output:', stdout);
+    if (stderr) console.error('Conversion errors:', stderr);
 
-      // Generate PDF
-      const pdfData = await page.pdf({
-        format: 'Letter',
-        printBackground: true,
-        margin: {
-          top: '20px',
-          right: '20px',
-          bottom: '20px',
-          left: '20px'
-        }
-      });
+    // Read the output file
+    const pdfBuffer = await fs.readFile(outputPath);
+    
+    // Clean up temporary files
+    await Promise.all([
+      fs.unlink(inputPath).catch(console.error),
+      fs.unlink(outputPath).catch(console.error)
+    ]);
 
-      // Convert Uint8Array to Buffer
-      return Buffer.from(pdfData);
-    } finally {
-      await browser.close();
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      throw new Error('PDF conversion resulted in empty buffer');
     }
+
+    console.log('PDF conversion successful, buffer size:', pdfBuffer.length);
+    return pdfBuffer;
   } catch (error) {
     console.error('Error converting DOCX to PDF:', error);
-    throw error;
+    throw new Error(`Failed to convert document: ${error.message}`);
   }
 } 
