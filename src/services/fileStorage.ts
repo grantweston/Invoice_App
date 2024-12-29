@@ -15,8 +15,8 @@ async function getDB() {
 }
 
 export async function storeFile(id: string, file: File): Promise<void> {
-  const db = await getDB();
   const arrayBuffer = await file.arrayBuffer();
+  const db = await getDB();
   await db.put(STORE_NAME, arrayBuffer, id);
 }
 

@@ -1,408 +1,283 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import InvoicePreview from '../components/InvoicePreview';
-import { useInvoiceStore } from '@/src/stores/invoiceStore';
+import InvoiceTemplateUpload from '../components/InvoiceTemplateUpload';
+import { useInvoiceStore } from '@/src/store/invoiceStore';
 
 export default function GenerateInvoicePage() {
-  const [previewHtml, setPreviewHtml] = useState('');
+  // Local state
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const { 
-    templates,
-    selectedTemplate, 
-    selectedClient, 
-    entries,
-    setSelectedTemplate,
-    setSelectedClient,
-    addWIPEntry,
-    addDailyActivity,
-    clearEntries
-  } = useInvoiceStore();
-
-  // New state for form inputs
-  const [newWIPEntry, setNewWIPEntry] = useState({
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-    timeInMinutes: 0,
-    hourlyRate: 300
+  const [invoiceNumber, setInvoiceNumber] = useState('INV-001');
+  const [dateRange, setDateRange] = useState({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
   });
+  const [isFilled, setIsFilled] = useState(false);
+  
+  // Store subscriptions
+  const templates = useInvoiceStore((state) => state.templates);
+  const selectedTemplate = useInvoiceStore((state) => state.selectedTemplate);
+  const setSelectedTemplate = useInvoiceStore((state) => state.setSelectedTemplate);
 
-  const [newDailyActivity, setNewDailyActivity] = useState({
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-    timeInMinutes: 0
-  });
+  // Handle template selection
+  const handleTemplateSelect = useCallback((templateId: string) => {
+    console.log('🟨 handleTemplateSelect called with templateId:', templateId);
+    const store = useInvoiceStore.getState();
+    console.log('🟨 Current store state:', store);
+    
+    const template = store.templates.find(t => t.id === templateId);
+    console.log('🟨 Found template:', template);
+    
+    if (template) {
+      console.log('🟨 Setting selected template in store');
+      store.setSelectedTemplate(template);
+      console.log('🟨 Selected template set');
+    }
+  }, []);
 
-  // Load template preview when template is selected
-  const loadTemplatePreview = async (templateId: string) => {
+  // Handle template upload completion
+  const handleUploadComplete = useCallback(async (templateId: string) => {
+    console.log('🟨 handleUploadComplete called with templateId:', templateId);
+    
+    // Get the latest state
+    const store = useInvoiceStore.getState();
+    console.log('🟨 Current store state:', store);
+    
+    const template = store.templates.find(t => t.id === templateId);
+    console.log('🟨 Found template:', template);
+    
+    if (template) {
+      // Force a re-render by toggling isGenerating
+      setIsGenerating(true);
+      
+      // Wait for store to update
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      // Update selected template
+      store.setSelectedTemplate(template);
+      console.log('🟨 Selected template set in store');
+      
+      // Complete the re-render
+      setIsGenerating(false);
+    }
+  }, []);
+
+  // Fill template with data
+  const fillTemplate = async () => {
+    if (!selectedTemplate?.id) return;
+    
     try {
-      console.log('Loading template preview for:', templateId);
+      setIsGenerating(true);
+
       const response = await fetch('/api/generate-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          templateId,
-          client: { name: 'Sample Client', id: 'sample' },
-          invoiceNumber: 'PREVIEW',
-          dateRange: {
-            start: new Date().toISOString().split('T')[0],
-            end: new Date().toISOString().split('T')[0]
-          },
-          wipEntries: [],
-          dailyActivities: []
+          templateId: selectedTemplate.id,
+          client: { name: 'Jack & Michelle Goldberg', id: 'client-1' },
+          invoiceNumber,
+          dateRange,
+          wipEntries: [{
+            description: "Tax Return Preparation",
+            timeInMinutes: 6,
+            hourlyRate: 300
+          }],
+          dailyActivities: [{
+            description: "Preparing tax return for Jack and Michelle Goldberg, reviewing tax forms and a PDF.",
+            timeInMinutes: 6
+          }]
         })
       });
 
-      console.log('Preview response status:', response.status);
-      const data = await response.json();
-      console.log('Preview response data:', {
-        hasError: !!data.error,
-        previewLength: data.preview?.length,
-        error: data.error
-      });
+      if (!response.ok) {
+        throw new Error(`Failed to generate invoice: ${response.status}`);
+      }
 
+      const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      console.log('Setting preview HTML...');
-      setPreviewHtml(data.preview);
-      setShowPreview(true);
+      setIsFilled(true);
     } catch (error) {
-      console.error('Failed to load template preview:', error);
-    }
-  };
-
-  // Handle template selection
-  const handleTemplateSelect = async (templateId: string) => {
-    console.log('Selecting template:', templateId);
-    setSelectedTemplate({
-      id: templateId,
-      name: 'EisnerAmperTemplate.docx'
-    });
-    if (templateId) {
-      await loadTemplatePreview(templateId);
-    }
-  };
-
-  // Load preview when component mounts if template is already selected
-  useEffect(() => {
-    console.log('Component mounted, checking for template:', selectedTemplate);
-    if (selectedTemplate?.id) {
-      loadTemplatePreview(selectedTemplate.id);
-    }
-  }, [selectedTemplate]);
-
-  // Handle client selection
-  const handleClientSelect = (clientName: string) => {
-    console.log('Selecting client:', clientName);
-    setSelectedClient({
-      id: 'client-1',
-      name: clientName
-    });
-  };
-
-  // Handle adding WIP entry
-  const handleAddWIPEntry = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Adding WIP entry:', newWIPEntry);
-    addWIPEntry(newWIPEntry);
-    setNewWIPEntry({
-      ...newWIPEntry,
-      description: ''
-    });
-  };
-
-  // Handle adding daily activity
-  const handleAddDailyActivity = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Adding daily activity:', newDailyActivity);
-    addDailyActivity(newDailyActivity);
-    setNewDailyActivity({
-      ...newDailyActivity,
-      description: ''
-    });
-  };
-
-  const generateInvoice = async (isPreview = false) => {
-    console.log('Starting invoice generation...', {
-      isPreview,
-      selectedTemplate,
-      selectedClient,
-      entriesCount: {
-        wip: entries.wip.length,
-        daily: entries.daily.length
-      }
-    });
-
-    if (!selectedTemplate || !selectedClient) {
-      console.log('Missing required data:', { selectedTemplate, selectedClient });
-      alert('Please select a template and client first');
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const requestData = {
-        templateId: selectedTemplate.id,
-        client: selectedClient,
-        invoiceNumber: `INV-${Date.now()}`,
-        dateRange: {
-          start: new Date().toISOString().split('T')[0],
-          end: new Date().toISOString().split('T')[0]
-        },
-        wipEntries: entries.wip,
-        dailyActivities: entries.daily
-      };
-      console.log('Sending request to generate invoice:', requestData);
-
-      const response = await fetch('/api/generate-invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData)
-      });
-
-      console.log('Received response:', {
-        status: response.status,
-        statusText: response.statusText
-      });
-
-      const data = await response.json();
-      console.log('Parsed response data:', {
-        hasError: !!data.error,
-        hasPreview: !!data.preview,
-        hasDocument: !!data.document,
-        previewLength: data.preview?.length
-      });
-
-      if (data.error) {
-        console.error('Error in response:', data.error);
-        throw new Error(data.error);
-      }
-
-      console.log('Setting preview HTML, length:', data.preview?.length);
-      setPreviewHtml(data.preview);
-      setShowPreview(true);
-
-      if (!isPreview && data.document) {
-        console.log('Preparing document download...');
-        const docxBlob = new Blob(
-          [Buffer.from(data.document, 'base64')],
-          { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
-        );
-        const url = URL.createObjectURL(docxBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Invoice-${selectedClient.name}.docx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        console.log('Document download triggered');
-      }
-    } catch (error) {
-      console.error('Failed to generate invoice:', error);
-      alert('Failed to generate invoice. Please try again.');
+      console.error('Failed to fill template:', error);
+      alert('Failed to fill template: ' + error.message);
     } finally {
       setIsGenerating(false);
-      console.log('Invoice generation completed');
     }
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="mb-8 space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Template</label>
-            <select
-              value={selectedTemplate?.id || ''}
-              onChange={(e) => handleTemplateSelect(e.target.value)}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Select a template...</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name} ({template.placeholders || 0} placeholders)
-                </option>
-              ))}
-            </select>
-            <div className="mt-2 text-sm text-gray-500">
-              {selectedTemplate ? 
-                `Selected template: ${selectedTemplate.name} (${selectedTemplate.id})` : 
-                'No template selected'
-              }
+    <div className="flex min-h-screen relative overflow-hidden bg-white dark:bg-[#121212]">
+      {/* Left side - Configuration */}
+      <div 
+        className={`transition-all duration-300 ease-in-out ${
+          selectedTemplate ? 'w-1/2' : 'w-full'
+        } p-6 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e]`}
+      >
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-2xl font-semibold mb-2 text-gray-900 dark:text-white">Invoice Generation</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">Generate professional invoices from your work sessions</p>
+
+          {/* Templates Section */}
+          <div className="bg-gray-50 dark:bg-[#2a2a2a] rounded-lg shadow-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Invoice Templates</h2>
+            
+            {/* Available Templates */}
+            {templates.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Available Templates</h3>
+                <div className="space-y-2">
+                  {templates.map((template) => (
+                    <div 
+                      key={template.id} 
+                      className={`flex items-center justify-between p-3 border rounded-lg transition-all duration-200 ${
+                        selectedTemplate?.id === template.id 
+                          ? 'border-gray-400 bg-gray-100 dark:bg-[#323232] dark:border-gray-600' 
+                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-[#2a2a2a]'
+                      }`}
+                    >
+                      <div className="flex-1 cursor-pointer" onClick={() => handleTemplateSelect(template.id)}>
+                        <div className="font-medium text-gray-900 dark:text-white">{template.name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {Object.values(template.placeholders).flat().length} placeholders
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const store = useInvoiceStore.getState();
+                          store.removeTemplate(template.id);
+                        }}
+                        className="ml-4 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                      >
+                        <span className="sr-only">Remove template</span>
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload New Template */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                {templates.length > 0 ? 'Upload New Template' : 'Get Started'}
+              </h3>
+              <InvoiceTemplateUpload onUploadComplete={handleUploadComplete} />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Client</label>
-            <select
-              value={selectedClient?.name || ''}
-              onChange={(e) => handleClientSelect(e.target.value)}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Select a client...</option>
-              <option value="Jack & Michelle Goldberg">Jack & Michelle Goldberg</option>
-            </select>
-          </div>
-        </div>
 
-        {/* Show template preview at the top */}
-        {showPreview && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4">Template Preview</h2>
-            <InvoicePreview 
-              html={previewHtml} 
-              isLoading={isGenerating}
-            />
+          {/* Configuration Section */}
+          {templates.length > 0 && (
+            <div className="bg-gray-50 dark:bg-[#2a2a2a] rounded-lg shadow-lg p-6">
+              <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Configuration</h2>
+              <div className="space-y-6">
+                {/* Template Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template</label>
+                  <select
+                    value={selectedTemplate?.id || ''}
+                    onChange={(e) => handleTemplateSelect(e.target.value)}
+                    className="w-full p-2 border rounded bg-white dark:bg-[#323232] text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent"
+                  >
+                    <option value="">Select a template...</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Invoice Number */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Invoice Number</label>
+                  <input
+                    type="text"
+                    value={invoiceNumber}
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                    className="w-full p-2 border rounded bg-white dark:bg-[#323232] text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Client Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Client</label>
+                  <select className="w-full p-2 border rounded bg-white dark:bg-[#323232] text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent">
+                    <option>Jack & Michelle Goldberg</option>
+                  </select>
+                </div>
+
+                {/* Date Range */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      value={dateRange.start}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                      className="w-full p-2 border rounded bg-white dark:bg-[#323232] text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date</label>
+                    <input
+                      type="date"
+                      value={dateRange.end}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                      className="w-full p-2 border rounded bg-white dark:bg-[#323232] text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Fill Template Button */}
+                <button
+                  onClick={fillTemplate}
+                  disabled={isGenerating || !selectedTemplate}
+                  className={`w-full py-2 px-4 rounded-lg text-white transition-colors ${
+                    isGenerating || !selectedTemplate
+                      ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700'
+                  }`}
+                >
+                  {isGenerating ? 'Generating...' : 'Fill Template'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right side - Preview */}
+      <div 
+        className={`absolute top-0 right-0 w-1/2 h-full transition-all duration-300 ease-in-out transform ${
+          selectedTemplate ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {selectedTemplate && (
+          <div className="h-full p-6 bg-gray-50 dark:bg-[#1e1e1e] animate-fade-in">
+            <div className="h-full">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Template Preview</h2>
+                <button
+                  onClick={fillTemplate}
+                  disabled={isGenerating}
+                  className={`px-4 py-2 rounded-lg text-white transition-colors ${
+                    isGenerating
+                      ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700'
+                  }`}
+                >
+                  {isGenerating ? 'Generating...' : 'Fill Template'}
+                </button>
+              </div>
+              <InvoicePreview
+                templateId={selectedTemplate.id}
+                isLoading={isGenerating}
+              />
+            </div>
           </div>
         )}
-
-        {/* WIP Entries Section */}
-        <div className="border rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-4">WIP Entries</h2>
-          <form onSubmit={handleAddWIPEntry} className="space-y-4">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input
-                  type="date"
-                  value={newWIPEntry.date}
-                  onChange={(e) => setNewWIPEntry({ ...newWIPEntry, date: e.target.value })}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newWIPEntry.description}
-                  onChange={(e) => setNewWIPEntry({ ...newWIPEntry, description: e.target.value })}
-                  className="w-full p-2 border rounded"
-                  placeholder="Enter work description"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time (minutes)</label>
-                <input
-                  type="number"
-                  value={newWIPEntry.timeInMinutes}
-                  onChange={(e) => setNewWIPEntry({ ...newWIPEntry, timeInMinutes: parseInt(e.target.value) })}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Add WIP Entry
-              </button>
-            </div>
-          </form>
-          
-          {/* Display WIP Entries */}
-          <div className="mt-4">
-            {entries.wip.map((entry, index) => (
-              <div key={index} className="p-2 border-b last:border-b-0">
-                <div className="flex justify-between">
-                  <span className="font-medium">{entry.date}</span>
-                  <span>{entry.timeInMinutes} minutes</span>
-                </div>
-                <p className="text-gray-600">{entry.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Daily Activities Section */}
-        <div className="border rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-4">Daily Activities</h2>
-          <form onSubmit={handleAddDailyActivity} className="space-y-4">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input
-                  type="date"
-                  value={newDailyActivity.date}
-                  onChange={(e) => setNewDailyActivity({ ...newDailyActivity, date: e.target.value })}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newDailyActivity.description}
-                  onChange={(e) => setNewDailyActivity({ ...newDailyActivity, description: e.target.value })}
-                  className="w-full p-2 border rounded"
-                  placeholder="Enter activity description"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time (minutes)</label>
-                <input
-                  type="number"
-                  value={newDailyActivity.timeInMinutes}
-                  onChange={(e) => setNewDailyActivity({ ...newDailyActivity, timeInMinutes: parseInt(e.target.value) })}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Add Daily Activity
-              </button>
-            </div>
-          </form>
-          
-          {/* Display Daily Activities */}
-          <div className="mt-4">
-            {entries.daily.map((activity, index) => (
-              <div key={index} className="p-2 border-b last:border-b-0">
-                <div className="flex justify-between">
-                  <span className="font-medium">{activity.date}</span>
-                  <span>{activity.timeInMinutes} minutes</span>
-                </div>
-                <p className="text-gray-600">{activity.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-between">
-          <button
-            onClick={clearEntries}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-          >
-            Clear All Entries
-          </button>
-          <div className="space-x-4">
-            <button
-              onClick={() => {
-                console.log('Preview button clicked');
-                generateInvoice(true);
-              }}
-              disabled={isGenerating}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50"
-            >
-              {isGenerating ? 'Previewing...' : 'Update Preview'}
-            </button>
-            <button
-              onClick={() => {
-                console.log('Generate & Download button clicked');
-                generateInvoice(false);
-              }}
-              disabled={isGenerating}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-            >
-              {isGenerating ? 'Generating...' : 'Generate & Download'}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

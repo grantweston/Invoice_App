@@ -242,3 +242,52 @@ html, body {
 .recording-pulse {
   animation: recordingPulse 2s infinite;
 }
+
+/* DOCX Preview Styles */
+.docx-preview {
+  padding: 2rem;
+  background: white;
+  width: 816px; /* Standard US Letter width */
+  height: 1056px; /* Standard US Letter height */
+  transform-origin: top center;
+  transition: transform 0.2s ease;
+}
+
+.docx-preview .document-container {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin: 0 auto;
+  width: 816px !important; /* Force exact width */
+  min-height: 1056px !important; /* Force exact height */
+  background: white;
+  padding: 1in; /* Standard 1 inch margins */
+}
+
+.docx-preview .document-container > div {
+  margin: 0 auto;
+  width: 100% !important;
+  background: white;
+}
+
+/* Ensure page breaks are respected */
+.docx-preview .page-break {
+  page-break-before: always;
+  height: 1056px !important;
+}
+
+/* Remove max-width constraints */
+.docx-preview * {
+  box-sizing: border-box;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}

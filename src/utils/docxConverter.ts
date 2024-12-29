@@ -1,22 +1,22 @@
-import htmlDocx from 'html-docx-js';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
 
-export async function htmlToDocx(html: string): Promise<Buffer> {
-  // Add default styling
-  const styledHtml = `
-    <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; }
-          table { border-collapse: collapse; width: 100%; }
-          td, th { border: 1px solid #ddd; padding: 8px; }
-          th { background-color: #f2f2f2; }
-        </style>
-      </head>
-      <body>
-        ${html}
-      </body>
-    </html>
-  `;
+export async function convertHtmlToDocx(html: string): Promise<Buffer> {
+  // Create a new document
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: html.replace(/<[^>]*>/g, ''), // Strip HTML tags for now
+            }),
+          ],
+        }),
+      ],
+    }],
+  });
 
-  return Buffer.from(htmlDocx.asBlob(styledHtml));
+  // Generate buffer
+  return await Packer.toBuffer(doc);
 } 
