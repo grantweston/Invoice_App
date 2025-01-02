@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFile } from '@/src/services/fileStorage';
+import { getTemplate } from '@/src/services/supabaseStorage';
 
 export async function GET(
   request: Request,
@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const templateId = params.id;
-    const fileData = await getFile(templateId);
+    const fileData = await getTemplate(templateId);
     
     if (!fileData) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });

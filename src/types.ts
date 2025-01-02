@@ -1,22 +1,55 @@
-export interface SubEntry {
-  id: number;
+export interface WIPEntry {
+  id: string;
   description: string;
-  dates: number[]; // Array of timestamps when this task was worked on
   timeInMinutes: number;
-  associatedDailyIds: number[];
+  hourlyRate: number;
+  date: string;
+  client: {
+    id: string;
+    name: string;
+    address: string;
+  };
+  category?: string;
+  retainerAmount?: number;
+  adjustments?: {
+    description: string;
+    amount: number;
+  }[];
 }
 
-export interface WIPEntry {
-  id: number;
-  client: string;
-  project: string;
-  hours?: number;
-  timeInMinutes?: number;
+export interface DailyActivity {
+  id: string;
   description: string;
-  partner: string;
-  hourlyRate: number;
-  associatedDailyIds: number[];
-  subEntries: SubEntry[]; // Array of distinct tasks within this project
-  startDate: number; // Timestamp of first work
-  lastWorkedDate: number; // Timestamp of most recent work
+  timeInMinutes: number;
+  date: string;
+  category?: string;
+}
+
+export interface WorkCategory {
+  name: string;
+  description?: string;
+  entries: WIPEntry[];
+  activities: DailyActivity[];
+  totalMinutes: number;
+  totalAmount: number;
+}
+
+export interface DetailedInvoice {
+  client: {
+    name: string;
+    address: string;
+    clientNumber?: string;
+  };
+  invoiceNumber: string;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  categories: WorkCategory[];
+  totalAmount: number;
+  retainerAmount?: number;
+  adjustments?: {
+    description: string;
+    amount: number;
+  }[];
 } 

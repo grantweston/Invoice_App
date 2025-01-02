@@ -19,88 +19,112 @@ export default function GenerateInvoicePage() {
   const templates = useInvoiceStore((state) => state.templates);
   const selectedTemplate = useInvoiceStore((state) => state.selectedTemplate);
   const setSelectedTemplate = useInvoiceStore((state) => state.setSelectedTemplate);
+  const entries = useInvoiceStore((state) => state.entries);
+  const loadEntries = useInvoiceStore((state) => state.loadEntries);
+
+  // Load entries on mount
+  useEffect(() => {
+    loadEntries();
+  }, [loadEntries]);
 
   // Handle template selection
   const handleTemplateSelect = useCallback((templateId: string) => {
-    console.log('🟨 handleTemplateSelect called with templateId:', templateId);
     const store = useInvoiceStore.getState();
-    console.log('🟨 Current store state:', store);
-    
     const template = store.templates.find(t => t.id === templateId);
-    console.log('🟨 Found template:', template);
     
     if (template) {
-      console.log('🟨 Setting selected template in store');
       store.setSelectedTemplate(template);
-      console.log('🟨 Selected template set');
     }
   }, []);
 
   // Handle template upload completion
   const handleUploadComplete = useCallback(async (templateId: string) => {
-    console.log('🟨 handleUploadComplete called with templateId:', templateId);
-    
-    // Get the latest state
     const store = useInvoiceStore.getState();
-    console.log('🟨 Current store state:', store);
-    
     const template = store.templates.find(t => t.id === templateId);
-    console.log('🟨 Found template:', template);
     
     if (template) {
-      // Force a re-render by toggling isGenerating
       setIsGenerating(true);
-      
-      // Wait for store to update
       await new Promise(resolve => setTimeout(resolve, 0));
-      
-      // Update selected template
       store.setSelectedTemplate(template);
-      console.log('🟨 Selected template set in store');
-      
-      // Complete the re-render
       setIsGenerating(false);
     }
   }, []);
 
+  // Filter entries by date range
+  const getFilteredEntries = useCallback(() => {
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+    
+    return {
+      wipEntries: entries.wip.filter(entry => {
+        const entryDate = new Date(entry.date);
+        return entryDate >= startDate && entryDate <= endDate;
+      }),
+      dailyActivities: entries.daily.filter(activity => {
+        const activityDate = new Date(activity.date);
+        return activityDate >= startDate && activityDate <= endDate;
+      })
+    };
+  }, [entries, dateRange]);
+
   // Fill template with data
   const fillTemplate = async () => {
-    if (!selectedTemplate?.id) return;
+    if (!selectedTemplate?.id) {
+      alert('Please select a template first');
+      return;
+    }
     
     try {
       setIsGenerating(true);
+      const { wipEntries, dailyActivities } = getFilteredEntries();
+
+      // Validate we have entries in the date range
+      if (wipEntries.length === 0 && dailyActivities.length === 0) {
+        throw new Error('No entries found in the selected date range');
+      }
+
+      // Get client info from first WIP entry
+      const clientInfo = wipEntries[0]?.client || {
+        name: 'Client Name Required',
+        address: 'Client Address Required',
+        id: 'client-id-required'
+      };
 
       const response = await fetch('/api/generate-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateId: selectedTemplate.id,
-          client: { name: 'Jack & Michelle Goldberg', id: 'client-1' },
+          client: clientInfo,
           invoiceNumber,
           dateRange,
-          wipEntries: [{
-            description: "Tax Return Preparation",
-            timeInMinutes: 6,
-            hourlyRate: 300
-          }],
-          dailyActivities: [{
-            description: "Preparing tax return for Jack and Michelle Goldberg, reviewing tax forms and a PDF.",
-            timeInMinutes: 6
-          }]
+          wipEntries,
+          dailyActivities,
+          retainerAmount: wipEntries[0]?.retainerAmount,
+          adjustments: wipEntries[0]?.adjustments
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to generate invoice: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to generate invoice: ${errorText}`);
       }
 
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      // Handle the docx file download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${invoiceNumber}-${clientInfo.name.replace(/\s+/g, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
       setIsFilled(true);
     } catch (error) {
       console.error('Failed to fill template:', error);
-      alert('Failed to fill template: ' + error.message);
+      alert('Failed to fill template: ' + (error as Error).message);
     } finally {
       setIsGenerating(false);
     }

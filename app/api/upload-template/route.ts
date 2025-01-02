@@ -1,29 +1,40 @@
 import { NextResponse } from 'next/server';
-import { storeServerFile } from '@/src/services/serverFileStorage';
+import { uploadTemplate } from '@/src/services/supabaseStorage';
 
 export async function POST(request: Request) {
+  console.log('Starting template upload...');
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const fileId = formData.get('fileId') as string;
-    
+
+    console.log('Received upload request:', {
+      fileId,
+      fileName: file?.name,
+      fileSize: file?.size
+    });
+
     if (!file || !fileId) {
-      return NextResponse.json({ error: 'No file or fileId provided' }, { status: 400 });
+      const missing = {
+        file: !file,
+        fileId: !fileId
+      };
+      console.error('Missing required fields:', missing);
+      return NextResponse.json(
+        { error: 'Missing required fields', missing },
+        { status: 400 }
+      );
     }
 
-    // Convert file to buffer and store
-    const bytes = await file.arrayBuffer();
-    await storeServerFile(fileId, Buffer.from(bytes));
+    console.log('Uploading to Supabase storage...');
+    await uploadTemplate(fileId, file);
+    console.log('Upload to Supabase complete');
 
-    return NextResponse.json({ 
-      success: true,
-      fileId,
-      message: 'File uploaded successfully' 
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error uploading file:', error);
+    console.error('Error uploading template:', error);
     return NextResponse.json(
-      { error: 'Failed to upload file' },
+      { error: 'Failed to upload template' },
       { status: 500 }
     );
   }

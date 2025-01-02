@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getServerFile } from '@/src/services/serverFileStorage';
-import { convertDocxToPdf } from '@/src/utils/pdfConverter';
+import { getTemplate } from '@/src/services/supabaseStorage';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: Request,
@@ -8,27 +9,30 @@ export async function GET(
 ) {
   try {
     const templateId = params.id;
-    console.log('Getting template for preview:', templateId);
-
-    const templateBuffer = await getServerFile(templateId);
-    if (!templateBuffer) {
+    console.log('API: Attempting to get template:', templateId);
+    
+    const { data, error } = await getTemplate(templateId);
+    
+    if (error || !data) {
+      console.error('API: Template not found or error:', error);
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
 
-    // Convert DOCX to PDF
-    const pdfBuffer = await convertDocxToPdf(templateBuffer);
-
-    // Return PDF with appropriate headers
-    return new NextResponse(pdfBuffer, {
+    console.log('API: Template found, returning blob');
+    
+    // Return the file with appropriate headers for browser preview
+    return new NextResponse(data, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline'
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `inline; filename="${templateId}.docx"`,
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-cache'
       }
     });
   } catch (error) {
-    console.error('Error generating PDF preview:', error);
+    console.error('API: Error getting template:', error);
     return NextResponse.json(
-      { error: 'Failed to generate preview' },
+      { error: 'Failed to get template' },
       { status: 500 }
     );
   }
