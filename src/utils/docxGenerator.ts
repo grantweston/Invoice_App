@@ -159,7 +159,7 @@ function generateSecondPage(invoice: DetailedInvoice): Paragraph[] {
 
 async function generateInvoiceDoc(data: InvoiceData): Promise<Buffer> {
   // Generate detailed invoice data
-  const detailedInvoice = generateDetailedInvoice(
+  const detailedInvoice = await generateDetailedInvoice(
     data.client,
     data.invoiceNumber,
     data.dateRange,
@@ -287,7 +287,7 @@ async function generateInvoiceDoc(data: InvoiceData): Promise<Buffer> {
       {
         // Second page (detailed breakdown)
         properties: {},
-        children: generateSecondPage(detailedInvoice),
+        children: await generateSecondPage(detailedInvoice),
       },
     ],
   });

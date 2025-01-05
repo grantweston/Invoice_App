@@ -11,6 +11,7 @@ interface InvoicePreviewProps {
 export default function InvoicePreview({ templateId, isLoading = false }: InvoicePreviewProps) {
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -18,6 +19,7 @@ export default function InvoicePreview({ templateId, isLoading = false }: Invoic
     async function loadPreview() {
       if (!templateId) return;
       
+      setIsLoadingPreview(true);
       setError(null);
 
       try {
@@ -30,24 +32,19 @@ export default function InvoicePreview({ templateId, isLoading = false }: Invoic
           throw new Error('Failed to get signed URL for template');
         }
 
-        console.log('Template signed URL:', signedUrl);
-
         // Use Word view mode with page view
         const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedUrl)}&embed=true&wdWordView=1&wdPageView=1&wdToolbar=0&wdAllowInteractivity=True&wdPrint=0&wdDownloadButton=0`;
-        console.log('Office viewer URL:', officeUrl);
 
         if (mounted) {
           setPreviewUrl(officeUrl);
         }
-
       } catch (error: any) {
-        console.error('Preview error:', {
-          error,
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        });
+        console.error('Preview error:', error);
         setError(error.message || 'Failed to preview template');
+      } finally {
+        if (mounted) {
+          setIsLoadingPreview(false);
+        }
       }
     }
 
@@ -67,7 +64,7 @@ export default function InvoicePreview({ templateId, isLoading = false }: Invoic
     );
   }
 
-  if (isLoading) {
+  if (isLoading || isLoadingPreview) {
     return (
       <div className="animate-pulse flex space-x-4 p-4">
         <div className="flex-1 space-y-4 py-1">

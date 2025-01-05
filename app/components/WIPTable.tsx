@@ -14,13 +14,10 @@ interface WIPTableProps {
   showTotalCost?: boolean;
 }
 
-// Format hours into hours and minutes
-const formatTime = (hours: number | string): string => {
+// Format minutes into hours and minutes
+const formatTime = (minutes: number | string): string => {
   // Convert string input to number if needed
-  const numericHours = typeof hours === 'string' ? parseFloat(hours) : hours;
-  
-  // Convert hours to minutes (1 hour = 60 minutes)
-  const totalMinutes = Math.round(numericHours * 60);
+  const totalMinutes = typeof minutes === 'string' ? parseFloat(minutes) : minutes;
   
   if (totalMinutes === 0) {
     return '0 min';
@@ -62,16 +59,13 @@ const formatCurrency = (amount: number): string => {
 
 // Add this helper function at the top with other helpers
 const getTimeInMinutes = (entry: WIPEntry): number => {
-  if (typeof entry.timeInMinutes === 'number') {
-    return entry.timeInMinutes;
-  }
-  return entry.hours ? Math.round(entry.hours * 60) : 0;
+  return entry.time_in_minutes || 0;
 };
 
 const setTimeInMinutes = (entry: WIPEntry, minutes: number): Partial<WIPEntry> => {
   return {
-    timeInMinutes: minutes,
-    hours: minutes / 60
+    ...entry,
+    time_in_minutes: minutes
   };
 };
 
@@ -317,67 +311,110 @@ const AnimatedTimeInput = ({
 };
 
 export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur, isEditable, showTimestamp = false, showTotalCost = true }: WIPTableProps) {
-  const textareaRefs = useRef<{ [key: string]: HTMLTextAreaElement | null }>({});
   const [editingValues, setEditingValues] = useState<Record<string, string | number>>({});
+  const textAreaRefs = useRef<Record<string, HTMLTextAreaElement>>({});
+
+  const handleTimeIncrement = (entry: WIPEntry) => {
+    const minutes = entry.time_in_minutes || 0;
+    const newValue = minutes + 1;
+    const updatedEntry = {
+      ...entry,
+      time_in_minutes: newValue
+    };
+    onEntryUpdate(updatedEntry);
+  };
+
+  const handleTimeDecrement = (entry: WIPEntry) => {
+    const minutes = entry.time_in_minutes || 0;
+    if (minutes > 0) {
+      const newValue = minutes - 1;
+      const updatedEntry = {
+        ...entry,
+        time_in_minutes: newValue
+      };
+      onEntryUpdate(updatedEntry);
+    }
+  };
+
+  const handleRateIncrement = (entry: WIPEntry) => {
+    const currentValue = entry.hourly_rate || 0;
+    const newValue = currentValue + 1;
+    const updatedEntry = {
+      ...entry,
+      hourly_rate: newValue
+    };
+    onEntryUpdate(updatedEntry);
+  };
+
+  const handleRateDecrement = (entry: WIPEntry) => {
+    const currentValue = entry.hourly_rate || 0;
+    if (currentValue > 0) {
+      const newValue = currentValue - 1;
+      const updatedEntry = {
+        ...entry,
+        hourly_rate: newValue
+      };
+      onEntryUpdate(updatedEntry);
+    }
+  };
 
   const handleEdit = (entry: WIPEntry, field: keyof WIPEntry, value: string | number) => {
-    // Store the editing value locally
-    const editKey = `${entry.id}-${field}`;
-    setEditingValues(prev => ({
-      ...prev,
-      [editKey]: value
-    }));
+    const updatedEntry = { ...entry };
+    
+    if (field === 'time_in_minutes') {
+      const minutes = parseInt(value as string) || 0;
+      Object.assign(updatedEntry, {
+        time_in_minutes: minutes
+      });
+    } else if (field === 'hourly_rate') {
+      updatedEntry.hourly_rate = parseFloat(value as string) || 0;
+    } else if (field === 'client_name') {
+      updatedEntry.client_name = value as string;
+    } else if (field === 'project_name') {
+      updatedEntry.project_name = value as string;
+    } else if (field === 'partner') {
+      updatedEntry.partner = value as string;
+    } else {
+      (updatedEntry[field] as any) = value;
+    }
+
+    onEntryUpdate(updatedEntry);
   };
 
   const handleBlur = (entry: WIPEntry, field: keyof WIPEntry) => {
     const editKey = `${entry.id}-${field}`;
     const value = editingValues[editKey];
-    
-    if (value === undefined) return;
-
-    // Clear the editing value
-    setEditingValues(prev => {
-      const newValues = { ...prev };
-      delete newValues[editKey];
-      return newValues;
-    });
-
-    // Convert values based on field type
-    const updatedEntry = { ...entry };
-    
-    if (field === 'timeInMinutes') {
-      const minutes = parseInt(value as string) || 0;
-      Object.assign(updatedEntry, {
-        timeInMinutes: minutes,
-        hours: minutes / 60
+    if (value !== undefined) {
+      handleEdit(entry, field, value);
+      setEditingValues(prev => {
+        const { [editKey]: _, ...rest } = prev;
+        return rest;
       });
-    } else if (field === 'hourlyRate') {
-      updatedEntry.hourlyRate = parseFloat(value as string) || 0;
-    } else if (field === 'client') {
-      updatedEntry.client = value as string;
-    } else if (field === 'project') {
-      updatedEntry.project = value as string;
-    } else if (field === 'partner') {
-      updatedEntry.partner = value as string;
-    } else if (field === 'description') {
-      updatedEntry.description = value as string;
     }
-    
-    onEntryUpdate(updatedEntry);
-    onBlur?.();
+    if (onBlur) onBlur();
   };
 
-  // Get the current value for a field (either editing value or entry value)
-  const getCurrentValue = (entry: WIPEntry, field: keyof WIPEntry): string | number => {
-    const editKey = `${entry.id}-${field}`;
-    const editValue = editingValues[editKey];
-    if (editValue !== undefined) return editValue;
-    
-    const entryValue = entry[field];
-    if (field === 'timeInMinutes') {
-      return entryValue as number || getTimeInMinutes(entry);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, entry: WIPEntry, field: keyof WIPEntry) => {
+    if (e.key === 'Enter' && (!field.includes('description') || !e.shiftKey)) {
+      e.preventDefault();
+      handleBlur(entry, field);
+      e.currentTarget.blur();
     }
-    return entryValue as string | number;
+  };
+
+  const getCurrentValue = (entry: WIPEntry, field: keyof WIPEntry): string | number => {
+    switch (field) {
+      case 'time_in_minutes':
+        return entry.time_in_minutes || 0;
+      case 'hourly_rate':
+        return entry.hourly_rate || 0;
+      case 'client_name':
+        return entry.client_name || '';
+      case 'project_name':
+        return entry.project_name || '';
+      default:
+        return entry[field]?.toString() || '';
+    }
   };
 
   // Auto-resize textarea
@@ -393,27 +430,19 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
 
   // Add effect to initialize textarea heights
   useEffect(() => {
-    Object.values(textareaRefs.current).forEach(textarea => {
+    Object.values(textAreaRefs.current).forEach(textarea => {
       if (textarea) {
         handleTextAreaInput(textarea);
       }
     });
   }, [entries]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, entry: WIPEntry, field: keyof WIPEntry) => {
-    if (e.key === 'Enter' && (!field.includes('description') || !e.shiftKey)) {
-      e.preventDefault();
-      handleBlur(entry, field);
-      e.currentTarget.blur();
-    }
+  const handleTimeChange = (entry: WIPEntry, minutes: number) => {
+    handleEdit(entry, 'time_in_minutes', minutes);
   };
 
   if (entries.length === 0) {
-    return (
-      <div className="bg-white dark:bg-dark-card rounded-lg border border-gray-200 dark:border-dark-border overflow-hidden">
-        <EmptyState />
-      </div>
-    );
+    return <EmptyState />;
   }
 
   return (
@@ -428,14 +457,14 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
             <th className="p-3 text-left w-[120px] text-xs">Time</th>
             <th className="p-3 text-left w-[70px] text-xs">Rate</th>
             {showTotalCost && <th className="p-3 text-left w-[60px] text-xs">Cost</th>}
-            <th className="p-3 text-left w-[90px] text-xs">Dates</th>
+            <th className="p-3 text-left w-[90px] text-xs">Date</th>
             <th className="p-3 text-left flex-1 min-w-[300px] text-xs">Description</th>
           </tr>
         </thead>
         <tbody>
           {entries.map((entry, idx) => (
             <tr
-              key={`${entry.id}-${entry.client}-${entry.project}`}
+              key={entry.id}
               className={`group border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors duration-150
                 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-dark-bg/25' : 'bg-white dark:bg-dark-card'}`}
             >
@@ -454,32 +483,32 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
               <td className="p-3 align-middle">
                 {isEditable ? (
                   <TextAreaInput
-                    value={getCurrentValue(entry, 'client') as string}
-                    onChange={(value) => handleEdit(entry, 'client', value)}
-                    onBlur={() => handleBlur(entry, 'client')}
-                    onKeyDown={(e) => handleKeyDown(e, entry, 'client')}
+                    value={getCurrentValue(entry, 'client_name') as string}
+                    onChange={(value) => handleEdit(entry, 'client_name', value)}
+                    onBlur={() => handleBlur(entry, 'client_name')}
+                    onKeyDown={(e) => handleKeyDown(e, entry, 'client_name')}
                     className="w-full p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
                       bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 text-xs"
                     minRows={1}
                   />
                 ) : (
                   <div className="py-1 px-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 rounded text-xs whitespace-pre-wrap break-words border dark:border-dark-border">
-                    {entry.client}
+                    {entry.client_name}
                   </div>
                 )}
               </td>
               <td className="p-3 align-middle">
                 {isEditable ? (
                   <TextAreaInput
-                    value={getCurrentValue(entry, 'project') as string}
-                    onChange={(value) => handleEdit(entry, 'project', value)}
-                    onBlur={() => handleBlur(entry, 'project')}
-                    onKeyDown={(e) => handleKeyDown(e, entry, 'project')}
+                    value={getCurrentValue(entry, 'project_name') as string}
+                    onChange={(value) => handleEdit(entry, 'project_name', value)}
+                    onBlur={() => handleBlur(entry, 'project_name')}
+                    onKeyDown={(e) => handleKeyDown(e, entry, 'project_name')}
                     className="w-full p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
                       bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
                   />
                 ) : (
-                  <div className="py-1 px-1.5 whitespace-pre-wrap break-words text-xs">{entry.project}</div>
+                  <div className="py-1 px-1.5 whitespace-pre-wrap break-words text-xs">{entry.project_name}</div>
                 )}
               </td>
               <td className="p-3 align-middle">
@@ -499,90 +528,43 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
               <td className="p-3 align-middle min-w-[100px]">
                 {isEditable ? (
                   <AnimatedTimeInput
-                    value={getCurrentValue(entry, 'timeInMinutes') as number ?? getTimeInMinutes(entry)}
-                    onChange={(minutes) => {
-                      handleEdit(entry, 'timeInMinutes', minutes);
-                      handleEdit(entry, 'hours', minutes / 60);
-                    }}
-                    onBlur={() => handleBlur(entry, 'timeInMinutes')}
-                    onKeyDown={(e) => handleKeyDown(e, entry, 'timeInMinutes')}
-                    onIncrement={() => {
-                      const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
-                      const newValue = minutes + 1;
-                      const updatedEntry = {
-                        ...entry,
-                        timeInMinutes: newValue,
-                        hours: newValue / 60
-                      };
-                      setEditingValues(prev => ({
-                        ...prev,
-                        [`${entry.id}-timeInMinutes`]: newValue,
-                        [`${entry.id}-hours`]: newValue / 60
-                      }));
-                      onEntryUpdate(updatedEntry);
-                    }}
-                    onDecrement={() => {
-                      const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
-                      if (minutes > 0) {
-                        const newValue = minutes - 1;
-                        const updatedEntry = {
-                          ...entry,
-                          timeInMinutes: newValue,
-                          hours: newValue / 60
-                        };
-                        setEditingValues(prev => ({
-                          ...prev,
-                          [`${entry.id}-timeInMinutes`]: newValue,
-                          [`${entry.id}-hours`]: newValue / 60
-                        }));
-                        onEntryUpdate(updatedEntry);
-                      }
-                    }}
+                    value={getCurrentValue(entry, 'time_in_minutes') as number}
+                    onChange={(minutes) => handleTimeChange(entry, minutes)}
+                    onBlur={() => handleBlur(entry, 'time_in_minutes')}
+                    onKeyDown={(e) => handleKeyDown(e, entry, 'time_in_minutes')}
+                    onIncrement={() => handleTimeIncrement(entry)}
+                    onDecrement={() => handleTimeDecrement(entry)}
                     className="min-w-[80px]"
                   />
                 ) : (
-                  <div className="py-1 px-2 text-xs">{formatTime(getTimeInMinutes(entry) / 60)}</div>
+                  <div className="py-1 px-2 text-xs">{formatTime(entry.time_in_minutes / 60)}</div>
                 )}
               </td>
               <td className="p-3 align-middle min-w-[120px]">
                 {isEditable ? (
                   <AnimatedNumberInput
-                    value={getCurrentValue(entry, 'hourlyRate') as number}
-                    onChange={(value) => handleEdit(entry, 'hourlyRate', value)}
-                    onBlur={() => handleBlur(entry, 'hourlyRate')}
-                    onKeyDown={(e) => handleKeyDown(e, entry, 'hourlyRate')}
+                    value={getCurrentValue(entry, 'hourly_rate') as number}
+                    onChange={(value) => handleEdit(entry, 'hourly_rate', value)}
+                    onBlur={() => handleBlur(entry, 'hourly_rate')}
+                    onKeyDown={(e) => handleKeyDown(e, entry, 'hourly_rate')}
                     prefix="$"
                     upDownButtons={true}
                     onIncrement={() => {
-                      const currentValue = getCurrentValue(entry, 'hourlyRate') as number;
-                      const newValue = currentValue + 1;
-                      handleEdit(entry, 'hourlyRate', newValue);
-                      onEntryUpdate({
-                        ...entry,
-                        hourlyRate: newValue
-                      });
+                      handleRateIncrement(entry);
                     }}
                     onDecrement={() => {
-                      const currentValue = getCurrentValue(entry, 'hourlyRate') as number;
-                      if (currentValue > 0) {
-                        const newValue = currentValue - 1;
-                        handleEdit(entry, 'hourlyRate', newValue);
-                        onEntryUpdate({
-                          ...entry,
-                          hourlyRate: newValue
-                        });
-                      }
+                      handleRateDecrement(entry);
                     }}
                     className="min-w-[80px]"
                   />
                 ) : (
-                  <div className="py-1 px-2 flex items-center text-xs">{formatCurrency(entry.hourlyRate)}</div>
+                  <div className="py-1 px-2 flex items-center text-xs">{formatCurrency(entry.hourly_rate)}</div>
                 )}
               </td>
               {showTotalCost && (
                 <td className="p-3 align-middle">
                   <div className="py-1 px-2 flex items-center font-medium text-gray-900 dark:text-gray-100 text-xs">
-                    {formatCurrency((getTimeInMinutes(entry) / 60) * entry.hourlyRate)}
+                    {formatCurrency((entry.time_in_minutes / 60) * entry.hourly_rate)}
                   </div>
                 </td>
               )}
@@ -593,7 +575,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                       type="date"
                       value={(() => {
                         try {
-                          const date = new Date(entry.startDate);
+                          const date = new Date(entry.date);
                           return date.toISOString().slice(0, 10);
                         } catch (e) {
                           return new Date().toISOString().slice(0, 10);
@@ -601,15 +583,9 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                       })()}
                       onChange={(e) => {
                         try {
-                          const newDate = new Date(e.target.value).getTime();
-                          if (!isNaN(newDate)) {
-                            handleEdit(entry, 'startDate', newDate);
-                            handleEdit(entry, 'lastWorkedDate', newDate);
-                            onEntryUpdate({
-                              ...entry,
-                              startDate: newDate,
-                              lastWorkedDate: newDate
-                            });
+                          const newDate = new Date(e.target.value).toISOString();
+                          if (!isNaN(new Date(newDate).getTime())) {
+                            handleEdit(entry, 'date', newDate);
                           }
                         } catch (e) {
                           console.error('Invalid date:', e);
@@ -623,7 +599,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   <div className="py-1 px-2 whitespace-nowrap h-[34px] flex items-center text-xs">
                     {(() => {
                       try {
-                        return formatDateRange(entry.startDate, entry.lastWorkedDate);
+                        return new Date(entry.date).toLocaleDateString();
                       } catch (e) {
                         return 'Invalid Date';
                       }
@@ -647,24 +623,6 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   ) : (
                     <div className="whitespace-pre-wrap break-words py-1 px-2 leading-normal text-gray-700 dark:text-gray-300 text-xs">
                       {entry.description}
-                    </div>
-                  )}
-                  
-                  {/* Sub-entries */}
-                  {entry.subEntries && entry.subEntries.length > 0 && (
-                    <div className="pl-4 border-l-2 border-gray-200 dark:border-dark-border space-y-3">
-                      {entry.subEntries.map(subEntry => (
-                        <div key={subEntry.id} className="text-xs">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="text-gray-700 dark:text-gray-300">{subEntry.description}</div>
-                              <div className="text-gray-500 dark:text-gray-400 mt-1">
-                                {formatTime(subEntry.timeInMinutes / 60)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>

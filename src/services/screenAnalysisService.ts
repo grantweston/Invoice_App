@@ -47,6 +47,17 @@ function generateUniqueId(): number {
 }
 
 export async function analyzeScreenshots(screenshots: string[], currentTasks: WIPEntry[] = []): Promise<ScreenAnalysis> {
+  if (!Array.isArray(screenshots) || screenshots.length === 0) {
+    throw new Error('No screenshots received');
+  }
+
+  // Validate screenshot format
+  for (const screenshot of screenshots) {
+    if (!screenshot.startsWith('data:image/') || !screenshot.includes('base64,')) {
+      throw new Error('Invalid screenshot format');
+    }
+  }
+
   try {
     console.log(`📸 Analyzing batch of ${screenshots.length} screenshots...`);
     
@@ -54,8 +65,8 @@ export async function analyzeScreenshots(screenshots: string[], currentTasks: WI
 
     // Group existing entries by client and project
     const existingPairs = currentTasks.reduce((acc, task) => {
-      acc[task.client] = acc[task.client] || new Set();
-      acc[task.client].add(task.project);
+      acc[task.client_name] = acc[task.client_name] || new Set();
+      acc[task.client_name].add(task.project_name || '');
       return acc;
     }, {} as Record<string, Set<string>>);
 
@@ -172,14 +183,6 @@ export async function analyzeScreenshots(screenshots: string[], currentTasks: WI
     };
   } catch (error) {
     console.error('❌ Failed to analyze screenshots:', error);
-    return {
-      client_name: "System",
-      project_name: "Error Recovery",
-      activity_description: "Failed to analyze screen activity",
-      detailed_description: "Failed to analyze screen activity due to technical error. Using fallback values.",
-      confidence_score: 0.4,
-      partner: '',
-      hourlyRate: 0
-    };
+    throw error; // Re-throw the error instead of returning fallback values
   }
 } 

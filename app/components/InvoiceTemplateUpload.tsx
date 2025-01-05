@@ -77,32 +77,59 @@ export default function InvoiceTemplateUpload({ onUploadComplete }: InvoiceTempl
       });
 
       const analysis = await analysisResponse.json();
+      console.log('Template analysis response:', analysis);
 
       if (!analysisResponse.ok) {
         throw new Error(analysis.error || 'Failed to analyze template');
       }
 
-      // Create template object
-      const template = {
-        id: fileId,
-        name: file.name,
-        placeholders: analysis.placeholders || {
-          client: [],
-          project: [],
-          billing: [],
-          dates: [],
-          custom: []
-        }
-      };
-      
-      await addTemplate(template);
-      
-      // Update selected template
-      const store = useInvoiceStore.getState();
-      store.setSelectedTemplate(template);
+      if (!analysis.placeholders) {
+        console.error('Analysis missing placeholders:', analysis);
+        throw new Error('Template analysis failed: No placeholders found');
+      }
 
-      // Notify parent
-      onUploadComplete?.(fileId);
+      // Create template object
+      try {
+        console.log('Creating template with analysis:', analysis);
+        const template = {
+          id: fileId,
+          name: file.name,
+          analysis: analysis,
+          lastUpdated: new Date().toISOString(),
+          placeholders: {
+            client: analysis.placeholders.filter(p => p.toLowerCase().includes('client')),
+            project: analysis.placeholders.filter(p => p.toLowerCase().includes('project')),
+            billing: analysis.placeholders.filter(p => 
+              p.toLowerCase().includes('amount') || 
+              p.toLowerCase().includes('invoice') ||
+              p.toLowerCase().includes('total')
+            ),
+            dates: analysis.placeholders.filter(p => p.toLowerCase().includes('date')),
+            custom: analysis.placeholders.filter(p => 
+              !p.toLowerCase().includes('client') &&
+              !p.toLowerCase().includes('project') &&
+              !p.toLowerCase().includes('amount') &&
+              !p.toLowerCase().includes('invoice') &&
+              !p.toLowerCase().includes('total') &&
+              !p.toLowerCase().includes('date')
+            )
+          }
+        };
+        console.log('Created template object:', template);
+
+        await addTemplate(template);
+        
+        // Update selected template
+        const store = useInvoiceStore.getState();
+        store.setSelectedTemplate(template);
+
+        // Notify parent
+        onUploadComplete?.(fileId);
+
+      } catch (error: any) {
+        console.error('Failed to create template:', error);
+        setError(error.message || 'Failed to create template');
+      }
 
     } catch (error: any) {
       console.error('Failed to upload template:', error);

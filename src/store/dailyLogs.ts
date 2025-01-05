@@ -2,17 +2,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { WIPEntry } from '@/src/types';
 
-// Add helper function
 const getTimeInMinutes = (entry: WIPEntry): number => {
-  if (typeof entry.timeInMinutes === 'number') {
-    return entry.timeInMinutes;
-  }
-  return entry.hours ? Math.round(entry.hours * 60) : 0;
+  return entry.time_in_minutes || 0;
 };
 
 interface DailyLogsState {
   logs: WIPEntry[];
-  addLog: (entry: WIPEntry) => void;
+  addLog: (description: string) => void;
   clearLogs: () => void;
   updateMatchingLogs: (oldEntry: WIPEntry, newEntry: WIPEntry) => void;
   setLogs: (logs: WIPEntry[]) => void;
@@ -23,19 +19,27 @@ export const useDailyLogs = create<DailyLogsState>()(
   persist(
     (set) => ({
       logs: [],
-      addLog: (entry) => {
-        console.log('📝 Adding to daily logs:', entry);
-        // Ensure both time formats are set
-        const newEntry = {
-          ...entry,
-          timeInMinutes: getTimeInMinutes(entry),
-          hours: getTimeInMinutes(entry) / 60
+      addLog: (description: string) => {
+        // Get settings
+        const settingsStr = localStorage.getItem('userSettings');
+        const settings = settingsStr ? JSON.parse(settingsStr) : {};
+        const partner = settings.userName || 'Unknown';
+        const hourlyRate = settings.defaultRate || 150;
+
+        const newLog: WIPEntry = {
+          id: Date.now().toString(),
+          date: new Date().toISOString(),
+          description,
+          time_in_minutes: 1,
+          hourly_rate: hourlyRate,
+          partner,
+          client_name: 'Unknown',
+          client_id: 'unknown',
+          project_name: 'General'
         };
-        set((state) => {
-          const newLogs = [...state.logs, newEntry];
-          console.log('📊 Updated daily logs:', newLogs);
-          return { logs: newLogs };
-        });
+        set((state) => ({
+          logs: [...state.logs, newLog]
+        }));
       },
       clearLogs: () => {
         console.log('🧹 Clearing daily logs');
@@ -45,16 +49,15 @@ export const useDailyLogs = create<DailyLogsState>()(
         set((state) => {
           const updatedLogs = state.logs.map(log => {
             // Match based on client and project
-            if (log.client === oldEntry.client && log.project === oldEntry.project) {
+            if (log.client_name === oldEntry.client_name && log.project_name === oldEntry.project_name) {
               return {
                 ...log,
-                client: newEntry.client,
-                project: newEntry.project,
+                client_name: newEntry.client_name,
+                project_name: newEntry.project_name,
                 description: log.description,
                 partner: log.partner,
-                hourlyRate: log.hourlyRate,
-                timeInMinutes: getTimeInMinutes(log),
-                hours: getTimeInMinutes(log) / 60
+                hourly_rate: log.hourly_rate,
+                time_in_minutes: getTimeInMinutes(log)
               };
             }
             return log;
@@ -64,11 +67,10 @@ export const useDailyLogs = create<DailyLogsState>()(
       },
       setLogs: (logs) => {
         console.log('📊 Setting daily logs:', logs);
-        // Ensure both time formats are set for all logs
+        // Ensure time format is set for all logs
         const updatedLogs = logs.map(log => ({
           ...log,
-          timeInMinutes: getTimeInMinutes(log),
-          hours: getTimeInMinutes(log) / 60
+          time_in_minutes: getTimeInMinutes(log)
         }));
         set({ logs: updatedLogs });
       },
@@ -76,7 +78,7 @@ export const useDailyLogs = create<DailyLogsState>()(
         console.log('🗑️ Deleting logs matching:', entryToDelete);
         set((state) => {
           const updatedLogs = state.logs.filter(log => 
-            !(log.client === entryToDelete.client && log.project === entryToDelete.project)
+            !(log.client_name === entryToDelete.client_name && log.project_name === entryToDelete.project_name)
           );
           return { logs: updatedLogs };
         });

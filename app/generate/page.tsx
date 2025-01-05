@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import InvoicePreview from '../components/InvoicePreview';
 import InvoiceTemplateUpload from '../components/InvoiceTemplateUpload';
 import { useInvoiceStore } from '@/src/store/invoiceStore';
+import InvoicePreviewModal from '../components/InvoicePreviewModal';
+import { DetailedInvoice, WIPEntry, DailyActivity } from '@/src/types';
+import { generateDetailedInvoice } from '@/src/services/invoiceDetailService';
 
 export default function GenerateInvoicePage() {
   // Local state
@@ -14,6 +17,9 @@ export default function GenerateInvoicePage() {
     end: new Date().toISOString().split('T')[0]
   });
   const [isFilled, setIsFilled] = useState(false);
+  const [previewData, setPreviewData] = useState<DetailedInvoice | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
   // Store subscriptions
   const templates = useInvoiceStore((state) => state.templates);
@@ -67,41 +73,86 @@ export default function GenerateInvoicePage() {
     };
   }, [entries, dateRange]);
 
-  // Fill template with data
-  const fillTemplate = async () => {
+  // Validate data before preview
+  const validateData = (wipEntries: WIPEntry[], dailyActivities: DailyActivity[]) => {
+    const errors: string[] = [];
+
     if (!selectedTemplate?.id) {
-      alert('Please select a template first');
-      return;
+      errors.push('Please select a template');
     }
+
+    if (wipEntries.length === 0 && dailyActivities.length === 0) {
+      errors.push('No entries found in the selected date range');
+    }
+
+    if (wipEntries.length > 0) {
+      const client = wipEntries[0].client;
+      if (!client?.name || !client?.address) {
+        errors.push('Client information is incomplete');
+      }
+    } else {
+      errors.push('No billable entries found');
+    }
+
+    if (!invoiceNumber.trim()) {
+      errors.push('Invoice number is required');
+    }
+
+    if (!dateRange.start || !dateRange.end) {
+      errors.push('Date range is required');
+    }
+
+    return errors;
+  };
+
+  // Preview invoice before generating
+  const previewInvoice = async () => {
+    try {
+      setIsGenerating(true);
+      setValidationErrors([]);
+      
+      const { wipEntries, dailyActivities } = getFilteredEntries();
+      const errors = validateData(wipEntries, dailyActivities);
+      
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        return;
+      }
+
+      const clientInfo = wipEntries[0].client;
+      const invoice = await generateDetailedInvoice(
+        clientInfo,
+        invoiceNumber,
+        dateRange,
+        wipEntries,
+        dailyActivities,
+        wipEntries[0]?.retainerAmount,
+        wipEntries[0]?.adjustments
+      );
+
+      setPreviewData(invoice);
+      setShowPreview(true);
+    } catch (error) {
+      console.error('Failed to preview invoice:', error);
+      setValidationErrors([`Failed to generate preview: ${(error as Error).message}`]);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Generate and download invoice
+  const generateInvoice = async () => {
+    if (!previewData) return;
     
     try {
       setIsGenerating(true);
-      const { wipEntries, dailyActivities } = getFilteredEntries();
-
-      // Validate we have entries in the date range
-      if (wipEntries.length === 0 && dailyActivities.length === 0) {
-        throw new Error('No entries found in the selected date range');
-      }
-
-      // Get client info from first WIP entry
-      const clientInfo = wipEntries[0]?.client || {
-        name: 'Client Name Required',
-        address: 'Client Address Required',
-        id: 'client-id-required'
-      };
-
+      
       const response = await fetch('/api/generate-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          templateId: selectedTemplate.id,
-          client: clientInfo,
-          invoiceNumber,
-          dateRange,
-          wipEntries,
-          dailyActivities,
-          retainerAmount: wipEntries[0]?.retainerAmount,
-          adjustments: wipEntries[0]?.adjustments
+          templateId: selectedTemplate!.id,
+          ...previewData
         })
       });
 
@@ -110,21 +161,21 @@ export default function GenerateInvoicePage() {
         throw new Error(`Failed to generate invoice: ${errorText}`);
       }
 
-      // Handle the docx file download
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `invoice-${invoiceNumber}-${clientInfo.name.replace(/\s+/g, '_')}.docx`;
+      a.download = `invoice-${invoiceNumber}-${previewData.client.name.replace(/\s+/g, '_')}.docx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
       setIsFilled(true);
+      setShowPreview(false);
     } catch (error) {
-      console.error('Failed to fill template:', error);
-      alert('Failed to fill template: ' + (error as Error).message);
+      console.error('Failed to generate invoice:', error);
+      setValidationErrors([`Failed to generate invoice: ${(error as Error).message}`]);
     } finally {
       setIsGenerating(false);
     }
@@ -256,15 +307,15 @@ export default function GenerateInvoicePage() {
 
                 {/* Fill Template Button */}
                 <button
-                  onClick={fillTemplate}
+                  onClick={previewInvoice}
                   disabled={isGenerating || !selectedTemplate}
                   className={`w-full py-2 px-4 rounded-lg text-white transition-colors ${
                     isGenerating || !selectedTemplate
                       ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700'
+                      : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700'
                   }`}
                 >
-                  {isGenerating ? 'Generating...' : 'Fill Template'}
+                  {isGenerating ? 'Generating...' : 'Preview Invoice'}
                 </button>
               </div>
             </div>
@@ -289,6 +340,32 @@ export default function GenerateInvoicePage() {
           </div>
         )}
       </div>
+
+      {/* Validation Errors */}
+      {validationErrors.length > 0 && (
+        <div className="fixed top-4 right-4 z-50">
+          {validationErrors.map((error, i) => (
+            <div 
+              key={i}
+              className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-2"
+              role="alert"
+            >
+              <p>{error}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewData && (
+        <InvoicePreviewModal
+          invoice={previewData}
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          onConfirm={generateInvoice}
+          isLoading={isGenerating}
+        />
+      )}
     </div>
   );
 } 

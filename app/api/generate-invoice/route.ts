@@ -1,22 +1,38 @@
 'use server';
 
 import { NextResponse } from 'next/server';
-import { generateInvoice } from '@/src/utils/docxGenerator';
+import { DetailedInvoice } from '@/src/types';
+import { fillTemplate } from '@/src/utils/templateHandler';
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
-    const docxBuffer = await generateInvoice(data);
+    const formData = await request.formData();
+    const templateFile = formData.get('template') as File;
+    const invoiceData = JSON.parse(formData.get('invoice') as string) as DetailedInvoice;
+    
+    if (!templateFile || !invoiceData) {
+      return NextResponse.json(
+        { error: 'Missing template or invoice data' },
+        { status: 400 }
+      );
+    }
 
-    return new NextResponse(docxBuffer, {
+    const templateBuffer = Buffer.from(await templateFile.arrayBuffer());
+    const docxBuffer = await fillTemplate(templateBuffer, invoiceData);
+    
+    // Return the generated DOCX as a blob
+    return new Response(docxBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="invoice-${data.invoiceNumber}.docx"`
+        'Content-Disposition': `attachment; filename="invoice-${invoiceData.invoiceNumber}.docx"`
       }
     });
   } catch (error) {
-    console.error('Failed to generate invoice:', error);
-    return NextResponse.json({ error: 'Failed to generate invoice' }, { status: 500 });
+    console.error('Invoice generation failed:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate invoice' },
+      { status: 500 }
+    );
   }
 }
 

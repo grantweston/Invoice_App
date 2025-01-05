@@ -1,103 +1,78 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import mammoth from 'mammoth';
+import docx4js from 'docx4js';
+import { analyze } from '@/src/integrations/gemini/geminiService';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+export const config = {
+  api: {
+    bodyParser: false
+  }
+};
 
 export async function POST(request: Request) {
-  console.log('=== Template Analysis Request Started ===');
-  
   try {
-    const body = await request.json();
-    console.log('Request body received:', {
-      filename: body.filename,
-      contentLength: body.content?.length || 0
-    });
-
-    if (!body.content) {
-      console.error('No content provided in request');
+    const formData = await request.formData();
+    const file = formData.get('template') as File;
+    
+    if (!file) {
       return NextResponse.json(
-        { error: 'No content provided' },
+        { error: 'No template file provided' },
         { status: 400 }
       );
     }
 
-    // Convert base64 to buffer and extract text
-    console.log('Converting base64 to buffer...');
-    const buffer = Buffer.from(body.content, 'base64');
-    console.log('Buffer created, size:', buffer.length);
-
-    console.log('Extracting text from document...');
-    const { value: templateText } = await mammoth.extractRawText({ buffer });
-    console.log('Text extracted, length:', templateText.length);
-    console.log('First 100 chars:', templateText.substring(0, 100));
+    const buffer = Buffer.from(await file.arrayBuffer());
     
-    console.log('Analyzing template structure...');
-    const analysisPrompt = `You are an expert at analyzing invoice templates and understanding how to map work data to them.
+    // Use docx4js to analyze the document structure
+    const doc = await docx4js.load(buffer);
+    const content = await doc.render();
+    
+    // Extract document structure
+    const structure = {
+      elements: [],
+      sections: [],
+      placeholders: []
+    };
 
-Here's an invoice template:
-${templateText}
-
-Analyze this template and identify:
-1. All placeholders (like {placeholder}, [placeholder], etc.)
-2. The structure and sections of the invoice
-3. How work entries should be formatted and aggregated
-4. Any special requirements or patterns
-
-Return ONLY a raw JSON object with no markdown formatting, no backticks, and no explanation. The JSON should have this structure:
-{
-  "placeholders": {
-    "client": ["list of client-related placeholders"],
-    "project": ["list of project-related placeholders"],
-    "billing": ["list of billing-related placeholders"],
-    "dates": ["list of date-related placeholders"],
-    "custom": ["any other placeholders"]
-  },
-  "structure": {
-    "sections": ["list of main sections in the template"],
-    "lineItemFormat": "description of how line items should be formatted",
-    "aggregationRules": ["rules for combining work entries"],
-    "specialRequirements": ["any special formatting or content requirements"]
-  },
-  "dataMapping": {
-    "wipEntries": "how WIP entries should map to invoice items",
-    "dailyActivities": "how daily activities should be incorporated",
-    "timeFormat": "how time should be formatted",
-    "amountCalculation": "how amounts should be calculated"
-  }
-}`;
-
-    console.log('Sending prompt to Gemini...');
-    const result = await model.generateContent(analysisPrompt);
-    const analysis = result.response.text();
-    console.log('Raw analysis received:', analysis);
-
-    try {
-      // Clean the response by removing any markdown formatting
-      console.log('Cleaning and parsing analysis...');
-      const cleanedAnalysis = analysis.replace(/^```json\s*|\s*```$/g, '').trim();
-      const templateStructure = JSON.parse(cleanedAnalysis);
-      
-      console.log('Analysis parsed successfully:', {
-        placeholderCount: Object.values(templateStructure.placeholders || {}).flat().length,
-        sections: templateStructure.structure?.sections?.length || 0
+    // Parse content and identify elements
+    content.forEach((item: any) => {
+      if (typeof item === 'string') {
+        // Look for placeholders like {placeholder}
+        const placeholderMatches = item.match(/{([^}]+)}/g);
+        if (placeholderMatches) {
+          structure.placeholders.push(...placeholderMatches);
+        }
+      }
+      structure.elements.push({
+        type: typeof item === 'string' ? 'text' : 'element',
+        content: typeof item === 'string' ? item : JSON.stringify(item)
       });
+    });
 
-      console.log('=== Template Analysis Completed Successfully ===');
-      return NextResponse.json(templateStructure);
-    } catch (parseError) {
-      console.error('Failed to parse template analysis:', parseError);
-      console.error('Raw analysis that failed to parse:', analysis);
-      return NextResponse.json(
-        { error: 'Failed to analyze template structure' },
-        { status: 500 }
-      );
-    }
+    // Use Gemini to analyze the structure
+    const analysisPrompt = `
+      Analyze this document structure:
+      ${JSON.stringify(structure, null, 2)}
+
+      Identify:
+      1. The purpose and type of each element
+      2. How elements relate to each other
+      3. The document layout and sections
+      4. Special formatting or requirements
+
+      Return a JSON object with the analysis.
+    `;
+
+    const analysisResult = await analyze(analysisPrompt);
+    const analysis = {
+      ...structure,
+      ...JSON.parse(analysisResult)
+    };
+    
+    return NextResponse.json(analysis);
   } catch (error) {
-    console.error('Error in template analysis:', error);
+    console.error('Template analysis failed:', error);
     return NextResponse.json(
-      { error: 'Failed to process template' },
+      { error: 'Failed to analyze template' },
       { status: 500 }
     );
   }

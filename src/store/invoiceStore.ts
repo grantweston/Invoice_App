@@ -1,19 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { WIPEntry, DailyActivity } from '@/src/types';
+import { WIPEntry, DailyActivity, Template, TemplateAnalysis } from '@/src/types';
 import { getWIPEntries, getDailyActivities } from '@/src/services/supabaseDB';
-
-export interface Template {
-  id: string;
-  name: string;
-  placeholders: {
-    client: string[];
-    project: string[];
-    billing: string[];
-    dates: string[];
-    custom: string[];
-  };
-}
+import { uploadAndAnalyzeTemplate, getTemplate } from '@/src/services/templateService';
 
 interface InvoiceStore {
   templates: Template[];
@@ -22,15 +11,16 @@ interface InvoiceStore {
     wip: WIPEntry[];
     daily: DailyActivity[];
   };
-  addTemplate: (template: Template) => void;
+  addTemplate: (file: File, name: string) => Promise<void>;
   removeTemplate: (id: string) => void;
   setSelectedTemplate: (template: Template | null) => void;
   loadEntries: () => Promise<void>;
+  reanalyzeTemplate: (templateId: string) => Promise<void>;
 }
 
 export const useInvoiceStore = create<InvoiceStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       templates: [],
       selectedTemplate: null,
       entries: {
@@ -38,19 +28,16 @@ export const useInvoiceStore = create<InvoiceStore>()(
         daily: []
       },
 
-      addTemplate: (template) => {
-        set((state) => {
-          const existingTemplate = state.templates.find(t => t.id === template.id);
-          if (existingTemplate) {
-            const newTemplates = state.templates.map(t => 
-              t.id === template.id ? template : t
-            );
-            return { templates: newTemplates };
-          } else {
-            const newTemplates = [...state.templates, template];
-            return { templates: newTemplates };
-          }
-        });
+      addTemplate: async (file: File, name: string) => {
+        try {
+          const template = await uploadAndAnalyzeTemplate(file, name);
+          set((state) => ({
+            templates: [...state.templates, template]
+          }));
+        } catch (error) {
+          console.error('Failed to add template:', error);
+          throw error;
+        }
       },
 
       removeTemplate: (id) => {
@@ -80,6 +67,26 @@ export const useInvoiceStore = create<InvoiceStore>()(
         } catch (error) {
           console.error('Failed to load entries:', error);
           // Keep existing entries on error
+        }
+      },
+
+      reanalyzeTemplate: async (templateId: string) => {
+        try {
+          // Get template file from storage
+          const template = await getTemplate(templateId);
+          if (!template) throw new Error('Template not found');
+
+          // Update templates list
+          set((state) => ({
+            templates: state.templates.map(t => 
+              t.id === templateId ? template : t
+            ),
+            selectedTemplate: state.selectedTemplate?.id === templateId ? 
+              template : state.selectedTemplate
+          }));
+        } catch (error) {
+          console.error('Failed to reanalyze template:', error);
+          throw error;
         }
       }
     }),

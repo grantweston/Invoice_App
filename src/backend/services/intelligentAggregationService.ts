@@ -7,107 +7,8 @@ interface AggregationResult {
   explanation?: string;
 }
 
-// Add helper function for string similarity
-function getStringSimilarity(str1: string, str2: string): number {
-  const s1 = str1.toLowerCase().trim();
-  const s2 = str2.toLowerCase().trim();
-  
-  // Check for exact match after normalization
-  if (s1 === s2) return 1;
-  
-  // Check if one contains the other
-  if (s1.includes(s2) || s2.includes(s1)) {
-    return 0.9;
-  }
-
-  // Split into words and compare
-  const words1 = s1.split(/\W+/).filter(w => w.length > 2);
-  const words2 = new Set(s2.split(/\W+/).filter(w => w.length > 2));
-  
-  // Count matching words
-  const matches = words1.filter(word => words2.has(word)).length;
-  const totalWords = Math.max(words1.length, words2.size);
-  
-  return totalWords > 0 ? matches / totalWords : 0;
-}
-
-// Add helper function for normalizing project names
-function normalizeProjectName(name: string): string {
-  // First, standardize common variations
-  let normalized = name
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    // Standardize common variations
-    .replace(/\b(development|dev)\b/gi, 'dev')
-    .replace(/\b(application|app)\b/gi, 'app')
-    .replace(/\b(program|prog)\b/gi, 'prog')
-    // Remove common prefixes
-    .replace(/^(new|the|a)\s+/gi, '')
-    // Remove version numbers
-    .replace(/\s+v\d+(\.\d+)*|\s+\d+(\.\d+)*/g, '')
-    // Remove common generic words
-    .replace(/\b(system|platform|service|api|ui|frontend|backend|web)\b/gi, '')
-    // Remove special characters and extra spaces
-    .replace(/[^\w\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // Ensure we don't end up with an empty string
-  if (!normalized) {
-    normalized = name.toLowerCase().trim();
-  }
-  
-  console.log(`🔍 Project name normalization:
-    Original: "${name}"
-    Normalized: "${normalized}"
-    Words: [${normalized.split(' ').join(', ')}]`);
-  return normalized;
-}
-
-// Add helper function for normalizing client names
-function normalizeClientName(name: string): string {
-  const normalized = name
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    // Remove common business suffixes
-    .replace(/\b(inc|llc|ltd|corporation|corp|company|co|group)\b/gi, '')
-    // Remove special characters
-    .replace(/[^\w\s]/g, '')
-    // Remove multiple spaces and trim
-    .replace(/\s+/g, ' ')
-    .trim();
-  
-  console.log(`🔍 Normalized client name: "${name}" -> "${normalized}"`);
-  return normalized;
-}
-
-// Add helper function for normalizing partner names
-function normalizePartnerName(name: string): string {
-  const normalized = name
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    // Common name variations
-    .replace(/\b(jonathan|john)\b/g, 'john')
-    .replace(/\b(samuel|sam)\b/g, 'sam')
-    .replace(/\b(benjamin|ben)\b/g, 'ben')
-    .replace(/\b(michael|mike)\b/g, 'mike')
-    .replace(/\b(robert|rob|bob)\b/g, 'rob')
-    .replace(/\b(william|will|bill)\b/g, 'will')
-    .replace(/\b(james|jim|jimmy)\b/g, 'james')
-    .replace(/\b(richard|rick|dick)\b/g, 'rick')
-    .replace(/\b(thomas|tom|tommy)\b/g, 'tom')
-    .replace(/\b(christopher|chris)\b/g, 'chris')
-    // Remove special characters and extra spaces
-    .replace(/[^\w\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  
-  console.log(`🔍 Normalized partner name: "${name}" -> "${normalized}"`);
-  return normalized;
-}
-
 // Add helper function to check if projects are effectively the same
-async function isSameProject(project1: string, project2: string): Promise<boolean> {
+export async function isSameProject(project1: string, project2: string): Promise<boolean> {
   console.log(`\n📊 Comparing projects:
     Project 1: "${project1}"
     Project 2: "${project2}"`);
@@ -142,15 +43,12 @@ async function isSameProject(project1: string, project2: string): Promise<boolea
     return isSame;
   } catch (error) {
     console.error("Error comparing projects with AI:", error);
-    // Fallback to basic comparison if AI fails
-    const norm1 = normalizeProjectName(project1);
-    const norm2 = normalizeProjectName(project2);
-    return norm1 === norm2 || norm1.includes(norm2) || norm2.includes(norm1);
+    return false;
   }
 }
 
 // Add helper function to check if clients are effectively the same
-async function isSameClient(client1: string, client2: string): Promise<boolean> {
+export async function isSameClient(client1: string, client2: string): Promise<boolean> {
   // If either is Unknown, they can be merged
   if (client1 === "Unknown" || client2 === "Unknown") {
     console.log(`✅ Client match (one unknown): "${client1}" ≈ "${client2}"`);
@@ -187,105 +85,50 @@ async function isSameClient(client1: string, client2: string): Promise<boolean> 
     return isSame;
   } catch (error) {
     console.error("Error comparing clients with AI:", error);
-    // Fallback to basic comparison if AI fails
-    const norm1 = normalizeClientName(client1);
-    const norm2 = normalizeClientName(client2);
-    return norm1 === norm2 || norm1.includes(norm2) || norm2.includes(norm1);
+    return false;
   }
-}
-
-// Add helper function to check if partners are effectively the same
-function isSamePartner(partner1: string, partner2: string): boolean {
-  const norm1 = normalizePartnerName(partner1);
-  const norm2 = normalizePartnerName(partner2);
-  
-  // Direct match after normalization
-  if (norm1 === norm2) {
-    console.log(`✅ Partner match (exact): "${partner1}" = "${partner2}"`);
-    return true;
-  }
-  
-  // Check if one contains the other
-  if (norm1.includes(norm2) || norm2.includes(norm1)) {
-    console.log(`✅ Partner match (contains): "${partner1}" ≈ "${partner2}"`);
-    return true;
-  }
-  
-  // Calculate similarity
-  const similarity = getStringSimilarity(norm1, norm2);
-  const isSimilar = similarity > 0.7;
-  
-  if (isSimilar) {
-    console.log(`✅ Partner match (similarity ${similarity.toFixed(2)}): "${partner1}" ≈ "${partner2}"`);
-  } else {
-    console.log(`❌ Partner mismatch (similarity ${similarity.toFixed(2)}): "${partner1}" ≠ "${partner2}"`);
-  }
-  
-  return isSimilar;
 }
 
 // Update shouldEntriesBeMerged to handle async comparisons
 export async function shouldEntriesBeMerged(entry1: WIPEntry, entry2: WIPEntry): Promise<{ shouldMerge: boolean; confidence: number }> {
   try {
-    const prompt = `
-    Compare these two work entries and determine if they represent the same project/task:
+    // Check if clients are the same using Gemini
+    const clientMatch = await isSameClient(entry1.client_name, entry2.client_name);
+    
+    // Check if projects are the same using Gemini
+    const projectMatch = await isSameProject(entry1.project_name || '', entry2.project_name || '');
+    
+    // Check description similarity using Gemini
+    const { shouldUpdate: descriptionMatch, explanation } = await compareDescriptions(entry1.description, entry2.description);
 
-    Entry 1:
-    - Client: "${entry1.client}"
-    - Project: "${entry1.project}"
-    - Partner: "${entry1.partner}"
+    // Calculate overall confidence - weight client and project matches more heavily
+    const confidence = (
+      (clientMatch ? 1 : 0) * 0.4 + 
+      (projectMatch ? 1 : 0) * 0.4 + 
+      (descriptionMatch ? 1 : 0) * 0.2
+    );
 
-    Entry 2:
-    - Client: "${entry2.client}"
-    - Project: "${entry2.project}"
-    - Partner: "${entry2.partner}"
+    // Entries should be merged if:
+    // 1. Clients match (including Unknown cases) AND
+    // 2. Either projects match OR descriptions are similar enough
+    const shouldMerge = clientMatch && (projectMatch || descriptionMatch);
 
-    Consider:
-    1. Are the client names referring to the same client? (Consider variations, abbreviations, and typos)
-    2. Are the project names referring to the same project? (Consider task descriptions and context)
-    3. Are the partner names referring to the same person? (Consider variations and typos)
-
-    Respond in JSON format:
-    {
-      "are_same": boolean,
-      "confidence": number (0-1),
-      "explanation": string,
-      "matches": {
-        "client_match": boolean,
-        "project_match": boolean,
-        "partner_match": boolean
-      }
-    }
-    `;
-
-    const response = await analyze(prompt);
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in response');
-    }
-
-    const analysis = JSON.parse(jsonMatch[0]);
-
-    // Return true only if all three fields match with high confidence
     return {
-      shouldMerge: analysis.are_same && analysis.matches.client_match && analysis.matches.project_match && analysis.matches.partner_match,
-      confidence: analysis.confidence
+      shouldMerge,
+      confidence
     };
   } catch (error) {
     console.error('Error comparing entries:', error);
-    // Fall back to basic string comparison if Gemini fails
     return {
-      shouldMerge: entry1.client === entry2.client && 
-                   entry1.project === entry2.project && 
-                   entry1.partner === entry2.partner,
-      confidence: 1.0
+      shouldMerge: false,
+      confidence: 0
     };
   }
 }
 
 export async function findRelatedEntries(entries: WIPEntry[]): Promise<WIPEntry[][]> {
   const groups: WIPEntry[][] = [];
-  const processed = new Set<number>();
+  const processed = new Set<string>();
 
   for (const entry of entries) {
     if (processed.has(entry.id)) continue;
@@ -297,11 +140,20 @@ export async function findRelatedEntries(entries: WIPEntry[]): Promise<WIPEntry[
     for (const candidate of entries) {
       if (processed.has(candidate.id)) continue;
 
-      // Check the last entry in current group against candidate
-      const lastEntry = currentGroup[currentGroup.length - 1];
-      const { shouldMerge, confidence } = await shouldEntriesBeMerged(lastEntry, candidate);
+      // Check if candidate matches ALL entries in current group
+      let shouldAddToGroup = true;
+      let minConfidence = 1;
 
-      if (shouldMerge && confidence > 0.7) {
+      for (const groupEntry of currentGroup) {
+        const { shouldMerge, confidence } = await shouldEntriesBeMerged(groupEntry, candidate);
+        if (!shouldMerge || confidence <= 0.7) {
+          shouldAddToGroup = false;
+          break;
+        }
+        minConfidence = Math.min(minConfidence, confidence);
+      }
+
+      if (shouldAddToGroup) {
         currentGroup.push(candidate);
         processed.add(candidate.id);
       }
@@ -313,79 +165,99 @@ export async function findRelatedEntries(entries: WIPEntry[]): Promise<WIPEntry[
   return groups;
 }
 
-export async function compareDescriptions(existingDesc: string, newDesc: string): Promise<{
+export async function compareDescriptions(
+  existingDesc: string,
+  newDesc: string
+): Promise<{
   shouldUpdate: boolean;
   updatedDescription?: string;
   explanation: string;
 }> {
   const prompt = `
-  Compare these two work descriptions and determine if the new description adds significant information that should be incorporated.
-  
-  Existing description: "${existingDesc}"
-  New description: "${newDesc}"
-  
-  Consider:
-  1. Does the new description add meaningful new context or progress information?
-  2. Is it just restating the same work in different words?
-  3. Does it represent progress made after the original description?
-  
-  If an update is needed, provide a merged description that:
-  - Preserves important context from the original
-  - Adds the new information
-  - Maintains a clear narrative of the work progress
-  
-  Respond in JSON format:
+  Compare these two work descriptions and determine if they should be combined into a single summary:
+
+  Description 1: "${existingDesc}"
+  Description 2: "${newDesc}"
+
+  Rules for combining:
+  1. Combine if they're related tasks or show progress on the same work
+  2. Convert verbs to strongest form:
+     - "working on" -> "completed"
+     - "started" -> "started"
+     - "reviewing" -> "reviewed"
+     - "discussing" -> "discussed"
+     - "implementing" -> "implemented"
+  3. Separate tasks with commas
+  4. Use standard abbreviations (AR, AP, Q1)
+  5. Keep only essential information
+  6. Don't add extra details or steps
+
+  Example good combinations:
+  "Started tax return" + "Working on Schedule C" = "Started tax return, completed Schedule C"
+  "Reviewing Q3 statements" + "Found issues in receivables" = "Reviewed Q3 statements, found AR issues"
+  "Meeting about strategy" + "Discussing timeline" = "Met with client, discussed strategy, set timeline"
+
+  Example descriptions to keep separate:
+  "Client meeting" + "Code review" (different types of work)
+  "Tax return 2023" + "Bookkeeping for Q4" (distinct activities)
+
+  Respond with just a JSON object:
   {
-    "shouldUpdate": boolean,
-    "updatedDescription": string (only if shouldUpdate is true),
-    "explanation": "brief reason for the decision"
-  }
-  `;
+    "shouldCombine": boolean,
+    "combinedDescription": string (only if shouldCombine is true),
+    "explanation": string (brief explanation of why),
+    "areSameTask": boolean (true if they're just different ways of saying the same thing)
+  }`;
 
   try {
     const response = await analyze(prompt);
-    const result = JSON.parse(response);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
+    }
+    const result = JSON.parse(jsonMatch[0]);
+    
+    if (result.areSameTask) {
+      const detailedDesc = existingDesc.length >= newDesc.length ? existingDesc : newDesc;
+      return {
+        shouldUpdate: false,
+        updatedDescription: detailedDesc,
+        explanation: 'Descriptions represent the same task with different wording'
+      };
+    }
+    
+    if (result.shouldCombine && result.combinedDescription) {
+      return {
+        shouldUpdate: true,
+        updatedDescription: result.combinedDescription,
+        explanation: result.explanation
+      };
+    }
+    
     return {
-      shouldUpdate: result.shouldUpdate,
-      updatedDescription: result.shouldUpdate ? result.updatedDescription : undefined,
+      shouldUpdate: false,
       explanation: result.explanation
     };
   } catch (error) {
-    console.error("Error comparing descriptions:", error);
-    // If descriptions are identical, don't update
-    if (existingDesc === newDesc) {
-      return {
-        shouldUpdate: false,
-        explanation: "Identical descriptions"
-      };
-    }
-    // If new description is longer, use it
-    if (newDesc.length > existingDesc.length) {
-      return {
-        shouldUpdate: true,
-        updatedDescription: newDesc,
-        explanation: "Using longer description due to analysis error"
-      };
-    }
-    // Otherwise keep existing description
+    console.error('Error comparing descriptions:', error);
     return {
       shouldUpdate: false,
-      explanation: "Keeping existing description due to analysis error"
+      explanation: 'Error during analysis'
     };
   }
 }
 
 export async function mergeEntryGroup(group: WIPEntry[]): Promise<WIPEntry> {
   // Sort entries by timestamp
-  const sortedEntries = group.sort((a, b) => a.id - b.id);
+  const sortedEntries = group.sort((a, b) => Number(a.id) - Number(b.id));
   
   // Calculate total time
   const totalMinutes = group.reduce((sum, entry) => {
-    return sum + (entry.timeInMinutes || (entry.hours ? Math.round(entry.hours * 60) : 0));
+    return sum + (entry.time_in_minutes || 0);
   }, 0);
 
   // Use the most confident client if available
-  const knownClient = group.find(e => e.client !== "Unknown")?.client || "Unknown";
+  const knownClient = group.find(e => e.client_name !== "Unknown")?.client_name || "Unknown";
 
   // Use the most recent entry as base
   const mostRecentEntry = sortedEntries[sortedEntries.length - 1];
@@ -410,25 +282,23 @@ export async function mergeEntryGroup(group: WIPEntry[]): Promise<WIPEntry> {
     }
   }
 
-  // Combine all associated daily IDs
-  const allAssociatedDailyIds = Array.from(new Set(
-    group.flatMap(entry => entry.associatedDailyIds || [])
-  )).sort((a, b) => a - b);
-
-  console.log(`🔗 Combined ${allAssociatedDailyIds.length} associated daily entries`);
-
   return {
     id: mostRecentEntry.id,
-    client: knownClient,
-    project: mostRecentEntry.project,
-    partner: mostRecentEntry.partner,
-    timeInMinutes: totalMinutes,
-    hours: totalMinutes / 60,
+    client_id: mostRecentEntry.client_id,
+    client_name: knownClient,
+    client_address: mostRecentEntry.client_address,
+    project_name: mostRecentEntry.project_name,
+    time_in_minutes: totalMinutes,
+    hourly_rate: mostRecentEntry.hourly_rate,
     description: finalDescription,
-    hourlyRate: mostRecentEntry.hourlyRate,
-    associatedDailyIds: allAssociatedDailyIds,
-    subEntries: mostRecentEntry.subEntries || [],
-    startDate: sortedEntries[0].startDate,
-    lastWorkedDate: mostRecentEntry.lastWorkedDate
+    date: mostRecentEntry.date,
+    category: mostRecentEntry.category,
+    entities: mostRecentEntry.entities,
+    details: mostRecentEntry.details,
+    retainer_amount: mostRecentEntry.retainer_amount,
+    adjustments: mostRecentEntry.adjustments,
+    created_at: mostRecentEntry.created_at,
+    updated_at: new Date().toISOString(),
+    partner: mostRecentEntry.partner
   };
 } 
