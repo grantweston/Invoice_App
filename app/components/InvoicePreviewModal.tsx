@@ -82,7 +82,7 @@ export default function InvoicePreviewModal({
                         {category.entries.map((entry, j) => (
                           <div key={j} className="flex justify-between">
                             <span>{entry.description}</span>
-                            <span>{(entry.timeInMinutes / 60).toFixed(2)} hrs</span>
+                            <span>{(entry.time_in_minutes / 60).toFixed(2)} hrs</span>
                           </div>
                         ))}
                         {category.activities.map((activity, j) => (

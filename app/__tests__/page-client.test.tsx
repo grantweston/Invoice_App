@@ -19,7 +19,54 @@ jest.mock('@/src/services/wipEntryService', () => ({
 
 // Mock Gemini service
 jest.mock('@/src/integrations/gemini/geminiService', () => ({
-  analyze: jest.fn().mockResolvedValue('true')
+  analyze: jest.fn().mockResolvedValue('true'),
+  analyzeJson: jest.fn().mockImplementation((prompt) => {
+    // For client comparison
+    if (prompt.includes('Client 1') && prompt.includes('Client 2')) {
+      const client1 = prompt.match(/Client 1: "([^"]+)"/)?.[1];
+      const client2 = prompt.match(/Client 2: "([^"]+)"/)?.[1];
+      
+      // Handle Unknown client case
+      if (client1 === 'Unknown' || client2 === 'Unknown') {
+        return Promise.resolve({
+          isMatch: true,
+          confidence: 0.75,
+          explanation: "Project patterns suggest same client",
+          patterns: [
+            "Similar project structure",
+            "Consistent terminology"
+          ]
+        });
+      }
+      
+      // Handle normal client comparison
+      const isMatch = client1 === client2;
+      return Promise.resolve({
+        isMatch,
+        confidence: isMatch ? 0.9 : 0.3,
+        explanation: isMatch ? "Exact match" : "Different clients",
+        patterns: []
+      });
+    }
+    
+    // For description comparison
+    if (prompt.includes('Description 1') && prompt.includes('Description 2')) {
+      return Promise.resolve({
+        shouldCombine: true,
+        hasNewInfo: true,
+        combinedDescription: "Combined description with optimization and indexing",
+        explanation: "Descriptions show progress",
+        areSameTask: false
+      });
+    }
+    
+    return Promise.resolve({
+      isMatch: true,
+      confidence: 0.9,
+      explanation: "Mock response",
+      patterns: []
+    });
+  })
 }));
 
 jest.mock('@/src/services/clientScreenRecorder');

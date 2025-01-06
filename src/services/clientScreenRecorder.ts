@@ -24,6 +24,21 @@ export class ClientScreenRecorder {
       video.srcObject = this.mediaStream;
       video.muted = true;
       
+      // Add proper styling to the video element
+      video.style.position = 'fixed';
+      video.style.right = '20px';
+      video.style.bottom = '20px';
+      video.style.width = '320px';
+      video.style.height = '180px';
+      video.style.borderRadius = '8px';
+      video.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+      video.style.zIndex = '1000';
+      video.style.backgroundColor = '#000';
+      video.style.objectFit = 'cover';
+      
+      // Add the video element to the document
+      document.body.appendChild(video);
+      
       await new Promise<void>((resolve) => {
         video.onloadedmetadata = () => {
           video.play().then(() => {
@@ -86,6 +101,12 @@ export class ClientScreenRecorder {
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop());
       this.mediaStream = null;
+      
+      // Remove the video element from the document
+      const videoElement = document.querySelector('video');
+      if (videoElement) {
+        videoElement.remove();
+      }
     }
     document.title = 'Recording stopped';
     console.log('✅ Recording stopped');

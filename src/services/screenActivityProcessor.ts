@@ -1,8 +1,14 @@
-import type { WIPEntry } from '@/src/types';
+import type { WIPEntry } from '@/src/services/supabaseDB';
 import type { ScreenAnalysis } from './screenAnalysisService';
 import { shouldEntriesBeMerged } from '@/src/backend/services/intelligentAggregationService';
 
 const DEFAULT_HOURLY_RATE = 150; // Default rate if none specified
+
+export function getActivePartner(): string {
+  const settingsStr = localStorage.getItem('userSettings');
+  const settings = settingsStr ? JSON.parse(settingsStr) : {};
+  return settings.userName || 'Unknown';
+}
 
 export async function processScreenActivity(
   analysis: ScreenAnalysis,
@@ -19,7 +25,7 @@ export async function processScreenActivity(
     client_id: '', // Will be set if we find a matching client
     project_name: analysis.project_name || '',
     client_address: '', // Will be set if we find a matching client
-    category: 'Development', // Default category
+    partner: getActivePartner(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   };

@@ -1,18 +1,29 @@
-import type { WIPEntry } from '@/src/types';
+import type { WIPEntry } from '@/src/services/supabaseDB';
 import type { ScreenAnalysis } from '@/src/services/screenAnalysisService';
 import { shouldEntriesBeMerged } from './intelligentAggregationService';
 import { getOrCreateUnknownClient } from '@/src/services/supabaseDB';
 
 export function getDefaultHourlyRate(): number {
   try {
-    if (typeof window === 'undefined') {
-      return 150; // Default rate in non-browser environment
+    // Check for test environment first
+    if (process.env.NODE_ENV === 'test' && typeof localStorage !== 'undefined') {
+      const settings = localStorage.getItem('userSettings');
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        if (parsed.defaultRate && !isNaN(parsed.defaultRate)) {
+          return Number(parsed.defaultRate);
+        }
+      }
     }
-    const settings = window.localStorage.getItem('userSettings');
-    if (settings) {
-      const parsed = JSON.parse(settings);
-      if (parsed.defaultRate && !isNaN(parsed.defaultRate)) {
-        return Number(parsed.defaultRate);
+    
+    // Browser environment check
+    if (typeof window !== 'undefined') {
+      const settings = window.localStorage.getItem('userSettings');
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        if (parsed.defaultRate && !isNaN(parsed.defaultRate)) {
+          return Number(parsed.defaultRate);
+        }
       }
     }
   } catch (error) {
@@ -36,24 +47,30 @@ function standardizeDescription(description: string): string {
 
 export function getActivePartner(): string {
   try {
-    if (typeof window === 'undefined') {
-      console.log('Running in non-browser environment');
-      return 'Unknown'; // Default partner in non-browser environment
+    // Check for test environment first
+    if (process.env.NODE_ENV === 'test' && typeof localStorage !== 'undefined') {
+      const settings = localStorage.getItem('userSettings');
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        if (parsed.userName) {
+          return parsed.userName;
+        }
+      }
     }
-    const settings = window.localStorage.getItem('userSettings');
-    console.log('Settings from localStorage:', settings);
-    if (settings) {
-      const parsed = JSON.parse(settings);
-      console.log('Parsed settings:', parsed);
-      if (parsed.userName) {
-        console.log('Found userName:', parsed.userName);
-        return parsed.userName;
+    
+    // Browser environment check
+    if (typeof window !== 'undefined') {
+      const settings = window.localStorage.getItem('userSettings');
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        if (parsed.userName) {
+          return parsed.userName;
+        }
       }
     }
   } catch (error) {
     console.error('Error getting active partner:', error);
   }
-  console.log('Falling back to Unknown partner');
   return 'Unknown'; // Fallback partner
 }
 
@@ -100,32 +117,15 @@ export async function processScreenActivity(
       const { shouldMerge, confidence } = await shouldEntriesBeMerged(existingEntry, newEntry);
       
       if (shouldMerge && confidence > 0.7) {
-        // Always add the time
-        newEntry.time_in_minutes += existingEntry.time_in_minutes;
+        // Merge the entries
+        const mergedEntry = {
+          ...existingEntry,
+          time_in_minutes: existingEntry.time_in_minutes + newEntry.time_in_minutes,
+          description: standardizeDescription(existingEntry.description + '\n' + newEntry.description),
+          updated_at: new Date().toISOString()
+        };
         
-        // Combine descriptions, avoiding duplicates
-        const descriptions = new Set([
-          existingEntry.description,
-          newEntry.description
-        ].flatMap(desc => desc.split('\n')));
-        newEntry.description = Array.from(descriptions).join('\n');
-        
-        // Client info handling:
-        // Always prefer existing client info over "Unknown"
-        if (existingEntry.client_name !== "Unknown" && 
-            (newEntry.client_name === "Unknown" || !newEntry.client_id)) {
-          newEntry.client_id = existingEntry.client_id;
-          newEntry.client_name = existingEntry.client_name;
-          newEntry.client_address = existingEntry.client_address || '';
-        }
-        
-        // Project name handling:
-        // Use existing project if new one is empty or generic
-        if (existingEntry.project_name && 
-            (!newEntry.project_name || 
-             newEntry.project_name.toLowerCase().includes('general'))) {
-          newEntry.project_name = existingEntry.project_name;
-        }
+        return mergedEntry;
       }
     }
 

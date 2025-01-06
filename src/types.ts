@@ -1,33 +1,4 @@
-export interface WIPEntry {
-  id: string;
-  description: string;
-  time_in_minutes: number;
-  hourly_rate: number;
-  date: string;
-  client_id: string;
-  client_name: string;
-  client_address?: string;
-  project_name?: string;
-  partner: string;
-  category?: string;
-  entities?: string[];
-  details?: string[];
-  retainer_amount?: number;
-  adjustments?: {
-    description: string;
-    amount: number;
-  }[];
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface DailyActivity {
-  id: string;
-  description: string;
-  timeInMinutes: number;
-  date: string;
-  category?: string;
-}
+import { WIPEntry, DailyActivity } from './services/supabaseDB';
 
 export interface WorkCategory {
   name: string;

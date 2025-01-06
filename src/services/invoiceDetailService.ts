@@ -1,4 +1,5 @@
-import { WIPEntry, DailyActivity, WorkCategory, DetailedInvoice } from '@/src/types';
+import { WIPEntry, DailyActivity } from '@/src/services/supabaseDB';
+import { WorkCategory, DetailedInvoice } from '@/src/types';
 import { categorizeDescription, groupSimilarWork } from './categoryService';
 
 async function categorizeWork(
@@ -24,15 +25,15 @@ async function categorizeWork(
 
     // Split back into WIP and Daily activities
     entries.forEach(entry => {
-      if ('hourlyRate' in entry) {
+      if ('hourly_rate' in entry) {
         // WIP Entry
         category.entries.push(entry);
-        category.totalMinutes += entry.timeInMinutes;
-        category.totalAmount += (entry.timeInMinutes / 60) * entry.hourlyRate;
+        category.totalMinutes += entry.time_in_minutes;
+        category.totalAmount += (entry.time_in_minutes / 60) * entry.hourly_rate;
       } else {
         // Daily Activity
         category.activities.push(entry);
-        category.totalMinutes += entry.timeInMinutes;
+        category.totalMinutes += entry.time_in_minutes;
       }
     });
 

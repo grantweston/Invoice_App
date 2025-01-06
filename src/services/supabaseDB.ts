@@ -19,9 +19,9 @@ export interface DailyActivity {
   id?: string
   date: string
   description: string
-  timeInMinutes: number
-  userId?: string
-  createdAt?: string
+  time_in_minutes: number
+  user_id?: string
+  created_at?: string
 }
 
 // WIP Entries

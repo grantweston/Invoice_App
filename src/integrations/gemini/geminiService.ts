@@ -1,14 +1,20 @@
 "use server";
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, type GenerativeModel } from "@google/generative-ai";
+import fetch from 'node-fetch';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 if (!GEMINI_API_KEY) {
   throw new Error('GEMINI_API_KEY is missing from environment variables');
 }
 
+// Configure Gemini with node-fetch for Node.js environment
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+// Set up fetch for Node.js environment
+(global as any).fetch = fetch;
+
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -35,9 +41,45 @@ async function retryWithBackoff<T>(
 
 export async function analyze(prompt: string): Promise<string> {
   return retryWithBackoff(async () => {
-    const result = await model.generateContent(prompt);
+    // Add format instruction to the prompt
+    const formattedPrompt = `${prompt}\n\nIMPORTANT: Respond with a clear 'true' or 'false' answer, optionally followed by a brief explanation.`;
+    const result = await model.generateContent(formattedPrompt);
     const response = await result.response;
     return response.text();
+  });
+}
+
+export async function analyzeJson(prompt: string): Promise<any> {
+  return retryWithBackoff(async () => {
+    // Add format instruction to the prompt
+    const formattedPrompt = `${prompt}\n\nIMPORTANT: Respond with ONLY a valid JSON object, no other text or formatting.`;
+    
+    const result = await model.generateContent(formattedPrompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Remove any markdown code block markers and clean up the response
+    const cleanJson = text
+      .replace(/```(?:json)?\n?/g, '') // Remove code block markers with or without language
+      .replace(/\n```/g, '')           // Remove closing code block marker
+      .trim();                         // Remove any extra whitespace
+    
+    try {
+      return JSON.parse(cleanJson);
+    } catch (error) {
+      console.error('Failed to parse JSON response:', cleanJson);
+      // Try to extract JSON from the response if it's wrapped in other text
+      const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch (innerError) {
+          console.error('Failed to parse extracted JSON:', jsonMatch[0]);
+          throw innerError;
+        }
+      }
+      throw error;
+    }
   });
 }
 
@@ -59,7 +101,7 @@ export async function areDescriptionsEquivalent(actual: string, expected: string
   8. Check if one is just a more concise version of the other
   9. Compare the actual content and meaning, not just the text
 
-  Respond with just "true" if they are equivalent in meaning (even if formatted differently), or "false" if they differ in meaningful ways.
+  IMPORTANT: Respond with ONLY 'true' or 'false', nothing else.
   `;
 
   try {
@@ -151,13 +193,21 @@ export async function compareDescriptions(
     };
   }
 
+  // Check if one is a more detailed version of the other
+  if (normalizedDesc1.includes(normalizedDesc2) || normalizedDesc2.includes(normalizedDesc1)) {
+    const detailedDesc = description1.length >= description2.length ? description1 : description2;
+    return {
+      shouldUpdate: false,
+      updatedDescription: detailedDesc,
+      explanation: 'One description is a more detailed version of the other'
+    };
+  }
+
   const prompt = `
-  Compare these two work descriptions and determine if they are related tasks that should be combined:
+  Compare these two work descriptions and determine if they should be combined:
 
   Description 1: "${description1}"
   Description 2: "${description2}"
-  ${project ? `Project: "${project}"` : ''}
-  ${client ? `Client: "${client}"` : ''}
 
   Consider:
   1. Are they part of the same overall task or project?
@@ -168,40 +218,32 @@ export async function compareDescriptions(
   6. Are they just different ways of saying the same thing?
   7. Would combining them make the progress narrative clearer?
   8. Are they sequential steps in the same process?
+  9. IMPORTANT: If one description is just a more detailed version of the other, mark them as the same task
 
-  If they should be combined, create a description that:
-  - Starts with the project name (if provided)
-  - Uses arrows (->) to show progression
-  - Keeps important details from both descriptions
-  - Is concise but complete
-  - Shows the logical flow of work
-  - Abbreviates repeated terms after first use
-  - Uses consistent formatting throughout
-  - Simplifies common phrases (e.g., "state and federal" -> "state/federal")
-  - Removes redundant information
-  - Keeps the more detailed version if they're essentially the same task
-  - Uses standard abbreviations (AR, AP, Q1, P1, etc.)
-  - Maintains chronological order
-  - Focuses on key milestones and progress
-  - Removes project name from the middle of the description
-  - Uses consistent tense throughout
-  - Keeps descriptions brief but informative
-  - Uses active voice
-  - Removes unnecessary words
-  - Standardizes terminology
+  Rules for response:
+  1. If descriptions are the same task with different detail levels, set areSameTask=true
+  2. Preserve technical terms like "optimization" instead of replacing with synonyms
+  3. Keep the more detailed version when tasks are the same
 
-  Respond with a JSON object containing:
+  IMPORTANT: You must respond with a valid JSON object in exactly this format:
   {
     "shouldCombine": boolean,
-    "combinedDescription": string (only if shouldCombine is true),
-    "explanation": string (brief explanation of the decision),
-    "areSameTask": boolean (true if they're just different ways of saying the same thing)
+    "combinedDescription": string,
+    "explanation": string,
+    "areSameTask": boolean
+  }
+
+  Example response:
+  {
+    "shouldCombine": true,
+    "combinedDescription": "Database setup -> Connection configuration -> Performance optimization",
+    "explanation": "Tasks represent sequential steps in database setup process",
+    "areSameTask": false
   }
   `;
 
   try {
-    const response = await analyze(prompt);
-    const result = JSON.parse(response);
+    const result = await analyzeJson(prompt);
     
     // If they're the same task, don't update
     if (result.areSameTask) {

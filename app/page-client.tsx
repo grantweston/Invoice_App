@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ClientScreenRecorder } from '@/src/services/clientScreenRecorder';
 import type { ScreenAnalysis } from '@/src/services/screenAnalysisService';
 import WIPTable from "@/app/components/WIPTable";
-import type { WIPEntry } from "@/src/types";
+import type { WIPEntry } from "@/src/services/supabaseDB";
 import { useDailyLogs } from "@/src/store/dailyLogs";
 import { useNormalizedNames } from "@/src/store/normalizedNames";
 import { isSameProject, isSameClient } from '@/src/backend/services/intelligentAggregationService';
@@ -13,6 +13,7 @@ import { useRecordingState } from '@/src/store/recordingState';
 import { upsertWIPEntry, getWIPEntries, updateWIPEntry, deleteWIPEntry } from '@/src/services/wipEntryService';
 import { supabase } from '@/src/lib/supabase';
 import { getActivePartner, getDefaultHourlyRate } from '@/src/backend/services/screenActivityProcessor';
+import { useActivePartner } from '@/src/store/activePartner';
 
 const DEFAULT_HOURLY_RATE = 150; // You can adjust this or load from env/config
 
@@ -32,6 +33,7 @@ export default function PageClient() {
   const dailyLogs = useDailyLogs();
   const isRecording = useRecordingState((state) => state.isRecording);
   const [recorder] = useState(() => new ClientScreenRecorder());
+  const { activePartner } = useActivePartner();
 
   // Function to fetch WIP entries
   const fetchWIPEntries = async () => {
@@ -83,37 +85,27 @@ export default function PageClient() {
 
       const data = await response.json();
       console.log('Analysis result:', data);
-
-      // Get settings
-      const partner = getActivePartner();
-      const hourlyRate = getDefaultHourlyRate();
-
-      // Create WIP entry from analysis
-      const entry: WIPEntry = {
-        id: crypto.randomUUID(),
-        description: data.description,
-        time_in_minutes: 1,
-        hourly_rate: hourlyRate,
-        date: new Date().toISOString(),
-        client_id: '',
-        client_name: data.client_name || 'Unknown',
-        client_address: '',
-        project_name: data.project_name || '',
-        partner: partner,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      await upsertWIPEntry(entry);
-      await fetchWIPEntries(); // Refresh entries after creating new one
+      await handleAnalysis(data);
     } catch (error) {
       console.error('Failed to analyze screenshots:', error);
     }
   };
 
   const findMatchingEntry = async (analysis: ScreenAnalysis): Promise<WIPEntry | undefined> => {
+    // Sort entries by date, most recent first
+    const sortedEntries = [...wipEntries].sort((a, b) => 
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+
+    const now = new Date().getTime();
+    const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
+
     // Try to find a matching entry using intelligent comparison
-    for (const entry of wipEntries) {
+    for (const entry of sortedEntries) {
+      // Check if entry was updated in the last 5 minutes
+      const entryTime = new Date(entry.updated_at).getTime();
+      if (now - entryTime > FIVE_MINUTES) continue;
+
       const clientMatches = analysis.client_name === "Unknown" || 
                           await isSameClient(entry.client_name, analysis.client_name);
       
@@ -131,9 +123,10 @@ export default function PageClient() {
     try {
       const now = new Date();
       
-      // Get settings first
-      const partner = getActivePartner();
-      const hourlyRate = getDefaultHourlyRate();
+      // Get settings
+      const settingsStr = localStorage.getItem('userSettings');
+      const settings = settingsStr ? JSON.parse(settingsStr) : {};
+      const hourlyRate = settings.hourlyRate || DEFAULT_HOURLY_RATE;
       
       // Create daily entry matching WIPEntry type
       const dailyEntry: WIPEntry = {
@@ -146,8 +139,7 @@ export default function PageClient() {
         client_name: analysis.client_name || 'Unknown',
         client_address: '',
         project_name: analysis.project_name || 'General',
-        partner: partner,
-        category: 'automatic',
+        partner: activePartner,
         created_at: now.toISOString(),
         updated_at: now.toISOString()
       };
@@ -169,10 +161,8 @@ export default function PageClient() {
           updated_at: now.toISOString()
         };
         
-        const savedEntry = await updateWIPEntry(matchingEntry.id, updatedEntry);
-        setWipEntries(prev => prev.map(entry => 
-          entry.id === matchingEntry.id ? savedEntry : entry
-        ));
+        await updateWIPEntry(matchingEntry.id, updatedEntry);
+        await fetchWIPEntries(); // Refresh entries after update
       } else {
         // Create new WIP entry
         const newEntry: WIPEntry = {
@@ -185,7 +175,7 @@ export default function PageClient() {
           hourly_rate: hourlyRate,
           description: analysis.activity_description || 'No description available',
           date: now.toISOString(),
-          partner: partner,
+          partner: activePartner,
           created_at: now.toISOString(),
           updated_at: now.toISOString()
         };
@@ -255,53 +245,40 @@ export default function PageClient() {
 
   // Update the createEntry function to include partner
   const createEntry = async (entry: Partial<WIPEntry>) => {
-    // Get settings
-    const settingsStr = localStorage.getItem('userSettings');
-    const settings = settingsStr ? JSON.parse(settingsStr) : {};
-    const partner = settings.userName || 'Unknown';
-    const hourlyRate = settings.defaultRate || 150;
+    try {
+      const settingsStr = localStorage.getItem('userSettings');
+      const settings = settingsStr ? JSON.parse(settingsStr) : {};
+      const hourlyRate = settings.hourlyRate || DEFAULT_HOURLY_RATE;
 
-    const newEntry: WIPEntry = {
-      id: crypto.randomUUID(),
-      description: entry.description || '',
-      time_in_minutes: entry.time_in_minutes || 0,
-      hourly_rate: entry.hourly_rate || hourlyRate,
-      date: entry.date || new Date().toISOString(),
-      client_id: entry.client_id || '',
-      client_name: entry.client_name || 'Unknown',
-      client_address: entry.client_address || '',
-      project_name: entry.project_name || '',
-      partner: entry.partner || partner,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    await upsertWIPEntry(newEntry);
-    return newEntry;
+      const newEntry = await upsertWIPEntry({
+        ...entry,
+        partner: activePartner,
+        hourly_rate: entry.hourly_rate || hourlyRate,
+        date: new Date().toISOString(),
+      });
+      await fetchWIPEntries();
+      return newEntry;
+    } catch (error) {
+      console.error('Error creating WIP entry:', error);
+      throw error;
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold">Work In Progress (WIP) Dashboard</h1>
-          <div className="flex items-center">
-            <WorkSessionButton
-              onStart={startWorkSession}
-              onEnd={endWorkSession}
-            />
-          </div>
-        </div>
+    <div className="max-w-7xl mx-auto p-4 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Work In Progress (WIP) Dashboard
+        </h1>
+        <WorkSessionButton onStart={startWorkSession} onEnd={endWorkSession} />
       </div>
 
-      <div className="space-y-4">
-        <WIPTable 
-          entries={wipEntries}
-          onEntryUpdate={handleEntryUpdate}
-          onDelete={handleEntryDelete}
-          isEditable={true}
-        />
-      </div>
+      <WIPTable
+        entries={wipEntries}
+        onEntryUpdate={handleEntryUpdate}
+        onDelete={handleEntryDelete}
+        isEditable={true}
+      />
     </div>
   );
 }

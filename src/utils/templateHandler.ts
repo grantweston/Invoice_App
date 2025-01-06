@@ -103,7 +103,7 @@ export async function fillTemplate(
       content.push(`${category.name}\n`);
       
       [...category.entries, ...category.activities].forEach(item => {
-        const hours = Number(item.timeInMinutes) / 60;
+        const hours = Number(item.time_in_minutes) / 60;
         const hourlyRate = 'hourlyRate' in item ? 
           (typeof item.hourlyRate === 'string' ? 
             parseFloat(item.hourlyRate) : Number(item.hourlyRate)) : 0;
@@ -154,7 +154,7 @@ function createWorkItemsTable(
     
     // Add work items
     [...category.entries, ...category.activities].forEach(item => {
-      const hours = Number(item.timeInMinutes) / 60;
+      const hours = Number(item.time_in_minutes) / 60;
       const hourlyRate = 'hourlyRate' in item ? 
         (typeof item.hourlyRate === 'string' ? 
           parseFloat(item.hourlyRate) : Number(item.hourlyRate)) : 0;

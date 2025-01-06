@@ -1,5 +1,6 @@
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType } from 'docx';
-import { WIPEntry, DailyActivity, DetailedInvoice, WorkCategory } from '@/src/types';
+import { WIPEntry, DailyActivity } from '@/src/services/supabaseDB';
+import { DetailedInvoice, WorkCategory } from '@/src/types';
 import { generateDetailedInvoice } from '@/src/services/invoiceDetailService';
 
 interface InvoiceData {
@@ -69,26 +70,12 @@ function generateSecondPage(invoice: DetailedInvoice): Paragraph[] {
 
     // Add WIP entries
     category.entries.forEach(entry => {
-      if (entry.entities) {
-        entry.entities.forEach(entity => {
-          elements.push(
-            new Paragraph({
-              indent: { left: 360 }, // 0.25 inch indent
-              children: [new TextRun({ text: `• ${entity}` })],
-            })
-          );
-        });
-      }
-      if (entry.details) {
-        entry.details.forEach(detail => {
-          elements.push(
-            new Paragraph({
-              indent: { left: 720 }, // 0.5 inch indent
-              children: [new TextRun({ text: `- ${detail}` })],
-            })
-          );
-        });
-      }
+      elements.push(
+        new Paragraph({
+          indent: { left: 360 }, // 0.25 inch indent
+          children: [new TextRun({ text: `• ${entry.description}` })],
+        })
+      );
     });
 
     // Add daily activities if any
@@ -237,11 +224,11 @@ async function generateInvoiceDoc(data: InvoiceData): Promise<Buffer> {
                       children: [new Paragraph({ text: entry.description })]
                     }),
                     new TableCell({ 
-                      children: [new Paragraph({ text: (entry.timeInMinutes / 60).toFixed(2) })]
+                      children: [new Paragraph({ text: (entry.time_in_minutes / 60).toFixed(2) })]
                     }),
                     new TableCell({ 
                       children: [new Paragraph({ 
-                        text: `$${((entry.timeInMinutes / 60) * entry.hourlyRate).toFixed(2)}` 
+                        text: `$${((entry.time_in_minutes / 60) * entry.hourly_rate).toFixed(2)}` 
                       })]
                     }),
                   ],
@@ -265,7 +252,7 @@ async function generateInvoiceDoc(data: InvoiceData): Promise<Buffer> {
               bullet: { level: 0 },
               children: [
                 new TextRun({
-                  text: `${activity.description} (${activity.timeInMinutes} minutes)`,
+                  text: `${activity.description} (${activity.time_in_minutes} minutes)`,
                   size: 24,
                 }),
               ],

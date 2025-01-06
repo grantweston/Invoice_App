@@ -1,7 +1,7 @@
 "use server";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { WIPEntry } from "@/src/types";
+import type { WIPEntry } from "@/src/services/supabaseDB";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 if (!GEMINI_API_KEY) {
@@ -76,7 +76,7 @@ export async function analyzeScreenshots(screenshots: string[], currentTasks: WI
       ).join('\n');
 
     const currentTasksContext = currentTasks.map(task => 
-      `- Client: "${task.client}", Project: "${task.project}", Description: "${task.description}"`
+      `- Client: "${task.client_name}", Project: "${task.project_name}", Description: "${task.description}"`
     ).join('\n');
 
     const prompt = `I'm showing you ${screenshots.length} screenshots taken over one minute of work.

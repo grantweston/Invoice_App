@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { upsertWIPEntry, getWIPEntries, updateWIPEntry, deleteWIPEntry } from '../wipEntryService';
-import { WIPEntry } from '@/src/types';
+import { WIPEntry } from '@/src/services/supabaseDB';
 
 // Mock environment variables
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:3000';
@@ -37,15 +37,18 @@ jest.mock('@supabase/supabase-js', () => {
 });
 
 const mockEntry: WIPEntry = {
-  id: '123',
-  description: 'Test entry',
-  time_in_minutes: 30,
+  id: 'test-id',
+  description: 'Test description',
+  time_in_minutes: 60,
   hourly_rate: 150,
   date: new Date().toISOString(),
-  client_id: 'client123',
+  client_id: 'test-client',
   client_name: 'Test Client',
-  client_address: '123 Test St',
-  project_name: 'Test Project'
+  client_address: 'Test Address',
+  project_name: 'Test Project',
+  partner: 'Test Partner',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString()
 };
 
 describe('WIP Entry Service', () => {

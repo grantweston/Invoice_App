@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { WIPEntry } from '@/src/types';
+import type { WIPEntry } from '@/src/services/supabaseDB';
 
 const getTimeInMinutes = (entry: WIPEntry): number => {
   return entry.time_in_minutes || 0;
@@ -8,7 +8,7 @@ const getTimeInMinutes = (entry: WIPEntry): number => {
 
 interface DailyLogsState {
   logs: WIPEntry[];
-  addLog: (description: string) => void;
+  addLog: (entry: WIPEntry) => void;
   clearLogs: () => void;
   updateMatchingLogs: (oldEntry: WIPEntry, newEntry: WIPEntry) => void;
   setLogs: (logs: WIPEntry[]) => void;
@@ -19,26 +19,9 @@ export const useDailyLogs = create<DailyLogsState>()(
   persist(
     (set) => ({
       logs: [],
-      addLog: (description: string) => {
-        // Get settings
-        const settingsStr = localStorage.getItem('userSettings');
-        const settings = settingsStr ? JSON.parse(settingsStr) : {};
-        const partner = settings.userName || 'Unknown';
-        const hourlyRate = settings.defaultRate || 150;
-
-        const newLog: WIPEntry = {
-          id: Date.now().toString(),
-          date: new Date().toISOString(),
-          description,
-          time_in_minutes: 1,
-          hourly_rate: hourlyRate,
-          partner,
-          client_name: 'Unknown',
-          client_id: 'unknown',
-          project_name: 'General'
-        };
+      addLog: (entry: WIPEntry) => {
         set((state) => ({
-          logs: [...state.logs, newLog]
+          logs: [...state.logs, entry]
         }));
       },
       clearLogs: () => {

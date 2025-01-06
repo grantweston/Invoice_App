@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { WIPEntry } from '@/src/types';
+import { WIPEntry } from '@/src/services/supabaseDB';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,11 +20,8 @@ export async function upsertWIPEntry(entry: Partial<WIPEntry>) {
       client_address: entry.client_address,
       project_name: entry.project_name,
       partner: entry.partner || 'Unknown',
-      category: entry.category,
-      entities: entry.entities,
-      details: entry.details,
-      retainer_amount: entry.retainer_amount,
-      adjustments: entry.adjustments
+      created_at: entry.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
     })
     .select()
     .single();
@@ -63,11 +60,7 @@ export async function updateWIPEntry(id: string, updates: Partial<WIPEntry>) {
       client_address: updates.client_address,
       project_name: updates.project_name,
       partner: updates.partner || 'Unknown',
-      category: updates.category,
-      entities: updates.entities,
-      details: updates.details,
-      retainer_amount: updates.retainer_amount,
-      adjustments: updates.adjustments
+      updated_at: new Date().toISOString()
     })
     .match({ id })
     .select()

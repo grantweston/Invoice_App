@@ -1,6 +1,6 @@
 "use client";
 
-import type { WIPEntry } from "@/src/types";
+import type { WIPEntry } from "@/src/services/supabaseDB";
 import { useEffect, useRef, useState } from 'react';
 import EmptyState from './EmptyState';
 

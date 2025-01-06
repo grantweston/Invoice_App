@@ -1,5 +1,5 @@
 import { analyze } from '@/src/integrations/gemini/geminiService';
-import { WIPEntry, DailyActivity } from '@/src/types';
+import { WIPEntry, DailyActivity } from '@/src/services/supabaseDB';
 
 // Cache categories to avoid redundant API calls
 const categoryCache = new Map<string, string>();

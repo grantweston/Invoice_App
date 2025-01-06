@@ -10,25 +10,58 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 // Mock the Supabase client
 jest.mock('@/src/lib/supabase', () => {
   let mockEntries = [];
+  let mockClient = null;
   
   return {
     supabase: {
       from: jest.fn(() => ({
         insert: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ 
-          data: { 
-            id: 'test-id',
-            client_name: 'Test Client',
-            project_name: 'Invoice App Development',
-            description: 'Test description',
-            time_in_minutes: 60,
-            hourly_rate: 150,
-            date: new Date().toISOString(),
-            client_id: 'test-client-id'
-          } 
+        single: jest.fn().mockImplementation(() => {
+          if (mockClient) {
+            return Promise.resolve({ data: mockClient });
+          }
+          return Promise.resolve({
+            data: {
+              id: 'test-id',
+              client_name: 'Test Client',
+              project_name: 'Invoice App Development',
+              description: 'Test description',
+              time_in_minutes: 60,
+              hourly_rate: 150,
+              date: new Date().toISOString(),
+              client_id: 'test-client-id',
+              partner: 'Test Partner',
+              client_address: 'Test Address',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          });
         }),
         order: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockImplementation((field, value) => {
+          if (field === 'name' && value === 'Unknown') {
+            mockClient = {
+              id: '',
+              client_name: 'Unknown',
+              project_name: 'General Work',
+              description: 'Test description',
+              time_in_minutes: 60,
+              hourly_rate: 150,
+              date: new Date().toISOString(),
+              client_id: '',
+              partner: 'Unknown',
+              client_address: 'N/A',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+          }
+          return {
+            then: jest.fn().mockImplementation(callback => {
+              return Promise.resolve(callback({ data: mockEntries }));
+            })
+          };
+        }),
         then: jest.fn().mockImplementation(callback => {
           return Promise.resolve(callback({ data: mockEntries }));
         })
@@ -36,6 +69,9 @@ jest.mock('@/src/lib/supabase', () => {
       mockEntries,
       __setMockEntries: (entries) => {
         mockEntries = entries;
+      },
+      __setMockClient: (client) => {
+        mockClient = client;
       }
     },
   };
@@ -134,6 +170,54 @@ jest.mock('@/src/integrations/gemini/geminiService', () => ({
     
     // Default response
     return Promise.resolve("false");
+  }),
+  
+  analyzeJson: jest.fn().mockImplementation((prompt) => {
+    // For client comparison
+    if (prompt.includes('Client 1') && prompt.includes('Client 2')) {
+      const client1 = prompt.match(/Client 1: "([^"]+)"/)?.[1];
+      const client2 = prompt.match(/Client 2: "([^"]+)"/)?.[1];
+      
+      // Handle Unknown client case
+      if (client1 === 'Unknown' || client2 === 'Unknown') {
+        return Promise.resolve({
+          isMatch: true,
+          confidence: 0.75,
+          explanation: "Project patterns suggest same client",
+          patterns: [
+            "Similar project structure",
+            "Consistent terminology"
+          ]
+        });
+      }
+      
+      // Handle normal client comparison
+      const isMatch = client1 === client2;
+      return Promise.resolve({
+        isMatch,
+        confidence: isMatch ? 0.9 : 0.3,
+        explanation: isMatch ? "Exact match" : "Different clients",
+        patterns: []
+      });
+    }
+    
+    // For description comparison
+    if (prompt.includes('Description 1') && prompt.includes('Description 2')) {
+      return Promise.resolve({
+        shouldCombine: true,
+        hasNewInfo: true,
+        combinedDescription: "Combined description with optimization and indexing",
+        explanation: "Descriptions show progress",
+        areSameTask: false
+      });
+    }
+    
+    return Promise.resolve({
+      isMatch: true,
+      confidence: 0.9,
+      explanation: "Mock response",
+      patterns: []
+    });
   })
 }));
 
@@ -207,7 +291,11 @@ describe('Screen Recording to WIP Entry Flow', () => {
         time_in_minutes: 30,
         hourly_rate: 150,
         date: new Date().toISOString(),
-        client_id: 'test-client-id'
+        client_id: 'test-client-id',
+        partner: 'Test Partner',
+        client_address: 'Test Address',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }
     ]);
 
@@ -237,7 +325,11 @@ describe('Screen Recording to WIP Entry Flow', () => {
       time_in_minutes: 30,
       hourly_rate: 150,
       date: new Date().toISOString(),
-      client_id: 'test-client-id'
+      client_id: 'test-client-id',
+      partner: 'Test Partner',
+      client_address: 'Test Address',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }];
 
     const mockAnalysis = {
@@ -263,7 +355,10 @@ describe('Screen Recording to WIP Entry Flow', () => {
       hourly_rate: 150,
       date: new Date().toISOString(),
       client_id: 'existing-client-id',
-      client_address: '123 Client St'
+      client_address: '123 Client St',
+      partner: 'Test Partner',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }];
 
     const mockAnalysis = {
@@ -290,14 +385,15 @@ describe('Screen Recording to WIP Entry Flow', () => {
       client_name: "Test Client",
       project_name: "Test Project",
       activity_description: "Basic work",
-      detailed_description: "Some work being done",
-      confidence_score: 0.7
+      detailed_description: "Basic work",
+      confidence_score: 0.5
     };
 
     const wipEntry = await processScreenActivity(mockAnalysis);
     expect(wipEntry).toEqual(expect.objectContaining({
       hourly_rate: expect.any(Number),
-      category: 'Development',
+      client_address: expect.any(String),
+      partner: expect.any(String),
       created_at: expect.any(String),
       updated_at: expect.any(String)
     }));
