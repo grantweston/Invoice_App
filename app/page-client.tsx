@@ -17,6 +17,7 @@ import {
 } from '@/src/backend/services/intelligentAggregationService';
 import WorkSessionButton from './components/WorkSessionButton';
 import { useRecordingState } from '@/src/store/recordingState';
+import { exportToExcel } from '@/src/services/excelExportService';
 
 const recorder = new ClientScreenRecorder();
 
@@ -47,17 +48,21 @@ const useWIPStore = create<WIPState>()(
 
 // Helper function to merge multiple descriptions intelligently
 function mergeMultipleDescriptions(...descriptions: string[]): string {
-  // Split all descriptions into bullets
-  const allBullets = descriptions.flatMap(desc => 
-    desc.split('•').filter(Boolean).map(b => b.trim())
+  // Split descriptions into sentences
+  const allSentences = descriptions.flatMap(desc => 
+    desc.split(/[.!?]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      // Remove any existing bullets or dashes
+      .map(s => s.replace(/^[•\-]\s*/, ''))
   );
   
   // Remove duplicates
-  const uniqueBullets = Array.from(new Set(allBullets));
+  const uniqueSentences = Array.from(new Set(allSentences));
   
-  // Join with bullet points
-  return uniqueBullets.length > 0 
-    ? '• ' + uniqueBullets.join(' • ') 
+  // Add bullet points and join
+  return uniqueSentences.length > 0 
+    ? uniqueSentences.map(s => `• ${s}`).join('\n')
     : 'No description available';
 }
 
@@ -366,12 +371,6 @@ export default function PageClient({ initialEntries }: PageClientProps) {
       }
 
       const now = new Date();
-      const timeSinceLastUpdate = lastUpdateTime ? now.getTime() - lastUpdateTime.getTime() : Infinity;
-      if (timeSinceLastUpdate < 30000) {
-        console.log('🔄 Skipping analysis - too soon since last update');
-        return;
-      }
-
       console.log(`📤 Sending batch of ${screenshots.length} screenshots for analysis...`);
 
       const response = await fetch('/api/analyze-screen', {
@@ -393,7 +392,7 @@ export default function PageClient({ initialEntries }: PageClientProps) {
       console.log('📊 Received analysis:', analysis);
       
       if (analysis.confidence_score > 0) {
-        // Create daily entry first (always 1 minute)
+        // Create a single daily entry for this minute
         const dailyEntry = {
           id: Date.now(),
           client: analysis.client_name,
@@ -408,9 +407,10 @@ export default function PageClient({ initialEntries }: PageClientProps) {
           startDate: Date.now(),
           lastWorkedDate: Date.now()
         };
-        
+
         // Add the daily entry
         addDailyLog(dailyEntry);
+        console.log('📝 Created daily entry:', dailyEntry);
 
         // Look for matching WIP entry to update
         const matchingEntry = wipEntries.find(entry => {
@@ -457,7 +457,7 @@ export default function PageClient({ initialEntries }: PageClientProps) {
           
           setWipEntries(prev => [...prev, newEntry]);
         }
-        
+
         setLastUpdateTime(now);
       }
     } catch (error) {
@@ -657,11 +657,20 @@ export default function PageClient({ initialEntries }: PageClientProps) {
               )}
             </select>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <WorkSessionButton
               onStart={startWorkSession}
               onEnd={endWorkSession}
             />
+            <button
+              onClick={() => exportToExcel(wipEntries, useDailyLogs.getState().logs)}
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs h-[38px] flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export to Excel
+            </button>
           </div>
         </div>
       </div>

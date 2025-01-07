@@ -102,6 +102,7 @@ export async function analyzeScreenshots(screenshots: string[], currentTasks: WI
     
     4. For the activity description:
        Daily Report (detailed):
+       - Write in plain text without bullet points or dashes
        - Include all observed activities and context
        - Note specific files being edited
        - Include relevant UI interactions
@@ -112,7 +113,7 @@ export async function analyzeScreenshots(screenshots: string[], currentTasks: WI
        WIP Dashboard (concise):
        - Provide a brief 1-2 sentence summary
        - Focus on the main task or goal
-       - Use bullet points for multiple activities
+       - Write in plain text without bullet points or dashes
        - Omit repetitive information
        - Write in active voice without subject
     
@@ -120,7 +121,7 @@ export async function analyzeScreenshots(screenshots: string[], currentTasks: WI
     {
       "client_name": "string, // Use 'Unknown' if not confident",
       "project_name": "string, // Describe the activity/project",
-      "activity_description": "string, // Brief bullet points for WIP dashboard",
+      "activity_description": "string, // Brief summary for WIP dashboard",
       "detailed_description": "string, // Detailed description for daily report",
       "confidence_score": number, // Between 0.4 and 1.0
       "client_detection_notes": "string, // Explain why this client was identified"

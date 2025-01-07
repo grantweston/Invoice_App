@@ -425,7 +425,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
             <th className="p-3 text-left min-w-[150px] text-xs">Client</th>
             <th className="p-3 text-left w-[15%] min-w-[150px] text-xs">Project</th>
             <th className="p-3 text-left w-[10%] min-w-[100px] text-xs">Partner</th>
-            <th className="p-3 text-left w-[120px] text-xs">Time</th>
+            <th className="p-3 text-left w-[120px] text-xs">{showTimestamp ? 'Time' : 'Duration'}</th>
             <th className="p-3 text-left w-[70px] text-xs">Rate</th>
             {showTotalCost && <th className="p-3 text-left w-[60px] text-xs">Cost</th>}
             <th className="p-3 text-left w-[90px] text-xs">Dates</th>
@@ -497,51 +497,80 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                 )}
               </td>
               <td className="p-3 align-middle min-w-[100px]">
-                {isEditable ? (
-                  <AnimatedTimeInput
-                    value={getCurrentValue(entry, 'timeInMinutes') as number ?? getTimeInMinutes(entry)}
-                    onChange={(minutes) => {
-                      handleEdit(entry, 'timeInMinutes', minutes);
-                      handleEdit(entry, 'hours', minutes / 60);
-                    }}
-                    onBlur={() => handleBlur(entry, 'timeInMinutes')}
-                    onKeyDown={(e) => handleKeyDown(e, entry, 'timeInMinutes')}
-                    onIncrement={() => {
-                      const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
-                      const newValue = minutes + 1;
-                      const updatedEntry = {
-                        ...entry,
-                        timeInMinutes: newValue,
-                        hours: newValue / 60
-                      };
-                      setEditingValues(prev => ({
-                        ...prev,
-                        [`${entry.id}-timeInMinutes`]: newValue,
-                        [`${entry.id}-hours`]: newValue / 60
-                      }));
-                      onEntryUpdate(updatedEntry);
-                    }}
-                    onDecrement={() => {
-                      const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
-                      if (minutes > 0) {
-                        const newValue = minutes - 1;
-                        const updatedEntry = {
-                          ...entry,
-                          timeInMinutes: newValue,
-                          hours: newValue / 60
-                        };
-                        setEditingValues(prev => ({
-                          ...prev,
-                          [`${entry.id}-timeInMinutes`]: newValue,
-                          [`${entry.id}-hours`]: newValue / 60
-                        }));
-                        onEntryUpdate(updatedEntry);
-                      }
-                    }}
-                    className="min-w-[80px]"
-                  />
+                {isEditable && !showTimestamp ? (
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={getCurrentValue(entry, 'timeInMinutes') ?? getTimeInMinutes(entry)}
+                      onChange={(e) => {
+                        const minutes = parseInt(e.target.value) || 0;
+                        handleEdit(entry, 'timeInMinutes', minutes);
+                        handleEdit(entry, 'hours', minutes / 60);
+                      }}
+                      onBlur={() => handleBlur(entry, 'timeInMinutes')}
+                      onKeyDown={(e) => handleKeyDown(e, entry, 'timeInMinutes')}
+                      className="w-full h-[34px] p-2 pr-[45px] min-w-[70px] border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                        bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-left pl-2"
+                      min="0"
+                    />
+                    <span className="absolute right-[30px] top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-xs">
+                      min
+                    </span>
+                    <div className="absolute right-0 top-0 bottom-0 w-6 flex flex-col border-l dark:border-dark-border">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
+                          const newValue = minutes + 1;
+                          const updatedEntry = {
+                            ...entry,
+                            timeInMinutes: newValue,
+                            hours: newValue / 60
+                          };
+                          setEditingValues(prev => ({
+                            ...prev,
+                            [`${entry.id}-timeInMinutes`]: newValue,
+                            [`${entry.id}-hours`]: newValue / 60
+                          }));
+                          onEntryUpdate(updatedEntry);
+                        }}
+                        className="flex-1 hover:bg-gray-100 dark:hover:bg-dark-bg/50 text-gray-600 dark:text-gray-400"
+                      >
+                        <svg className="w-3 h-3 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const minutes = (getCurrentValue(entry, 'timeInMinutes') as number) || 0;
+                          if (minutes > 0) {
+                            const newValue = minutes - 1;
+                            const updatedEntry = {
+                              ...entry,
+                              timeInMinutes: newValue,
+                              hours: newValue / 60
+                            };
+                            setEditingValues(prev => ({
+                              ...prev,
+                              [`${entry.id}-timeInMinutes`]: newValue,
+                              [`${entry.id}-hours`]: newValue / 60
+                            }));
+                            onEntryUpdate(updatedEntry);
+                          }
+                        }}
+                        className="flex-1 hover:bg-gray-100 dark:hover:bg-dark-bg/50 text-gray-600 dark:text-gray-400 border-t dark:border-dark-border"
+                      >
+                        <svg className="w-3 h-3 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="py-1 px-2 text-xs">{formatTime(getTimeInMinutes(entry) / 60)}</div>
+                  <div className="py-1 px-2 text-xs">
+                    {showTimestamp ? formatTimestamp(entry.id) : formatTime(getTimeInMinutes(entry) / 60)}
+                  </div>
                 )}
               </td>
               <td className="p-3 align-middle min-w-[120px]">
