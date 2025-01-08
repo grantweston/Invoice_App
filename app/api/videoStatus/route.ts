@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import { screenVideo } from "@/src/services/screenVideoService";
 
 export async function GET() {
-  try {
-    const status = screenVideo.getStatus();
-    return NextResponse.json(status);
-  } catch (error: any) {
-    console.error("Error getting video status:", error);
-    return NextResponse.json({ state: 'error', message: error.message }, { status: 500 });
-  }
+  // Since screen recording is client-side only, return a default status
+  return NextResponse.json({
+    state: 'idle',
+    message: 'Screen recording is only available in the browser'
+  });
 }

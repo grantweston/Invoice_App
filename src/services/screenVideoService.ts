@@ -1,21 +1,14 @@
-import { getSupabase } from '@/src/backend/db/supabaseClient';
-import { createTimeEntry } from '@/src/backend/services/timeEntryService';
-import { promises as fs } from 'fs';
-import path from 'path';
+'use client';
+
 import RecordRTC from 'recordrtc';
 
 export class ScreenVideoService {
   private recorder: RecordRTC | null = null;
   private isRecording = false;
-  private recordingPath: string;
   private currentStatus: { state: string; message: string } = {
     state: 'idle',
     message: ''
   };
-
-  constructor() {
-    this.recordingPath = path.join(process.cwd(), 'recordings');
-  }
 
   async startCapturing() {
     if (this.isRecording) {
@@ -23,8 +16,6 @@ export class ScreenVideoService {
     }
 
     try {
-      await fs.mkdir(this.recordingPath, { recursive: true });
-      
       // Get screen stream
       const stream = await navigator.mediaDevices.getDisplayMedia({ 
         video: true,
@@ -39,15 +30,6 @@ export class ScreenVideoService {
 
       this.recorder.startRecording();
       this.isRecording = true;
-      
-      // Create initial time entry
-      await createTimeEntry({
-        clientId: 'A', // You'll need to get these from UI/state
-        projectId: 'Alpha',
-        hours: 0,
-        description: 'Started recording session',
-        date: new Date().toISOString()
-      });
 
       this.currentStatus = { 
         state: 'recording', 
@@ -87,4 +69,5 @@ export class ScreenVideoService {
   }
 }
 
-export const screenVideo = new ScreenVideoService();
+// Only create the instance if we're in the browser
+export const screenVideo = typeof window !== 'undefined' ? new ScreenVideoService() : null;
