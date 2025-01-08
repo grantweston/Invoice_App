@@ -19,4 +19,11 @@ export interface WIPEntry {
   subEntries: SubEntry[]; // Array of distinct tasks within this project
   startDate: number; // Timestamp of first work
   lastWorkedDate: number; // Timestamp of most recent work
+}
+
+export interface Activity {
+  timestamp: string;
+  description: string;
+  type: 'screen_capture' | 'manual';
+  duration: number; // in minutes
 } 
