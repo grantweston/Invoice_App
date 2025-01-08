@@ -17,14 +17,3 @@ Aggregate these time entries by client and project. Output in JSON: { "client_na
 Entries:
 ${JSON.stringify(entries)}
 `;
-
-export const INVOICE_GENERATION_PROMPT = (invoiceData: any) => `
-Given hours worked, client details, and invoice template placeholders, produce line items and a formal project description.
-Data: ${JSON.stringify(invoiceData)}
-`;
-
-export const REFINEMENT_PROMPT = (currentText: string) => `
-Here is the current invoice text:
-${currentText}
-The user wants it more formal/concise. Maintain placeholders. Return the revised text.
-`;
