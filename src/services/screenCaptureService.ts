@@ -2,7 +2,12 @@ import screenshot from 'screenshot-desktop';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { summarizeOneMinuteActivities } from '@/src/integrations/gemini/geminiService';
-import { Activity } from '@/src/types';
+
+// Use the Activity type from geminiService
+interface Activity {
+  text: string;
+  image?: Buffer;
+}
 
 export class ScreenCaptureService {
   private captureInterval: NodeJS.Timeout | null = null;
@@ -28,10 +33,9 @@ export class ScreenCaptureService {
         
         // Add to activities array with proper Activity type
         this.activities.push({
-          timestamp: new Date().toISOString(),
-          description: `Screen activity at ${timestamp}`,
-          type: 'screen_capture',
-          duration: 1 // 1 minute per capture
+          text: `Screen activity at ${timestamp}`,
+          // Optionally read the image file and add it as a Buffer
+          // image: await fs.readFile(imagePath)
         });
         
         // Every 15 captures (15 minutes), summarize and reset
