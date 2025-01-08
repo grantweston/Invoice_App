@@ -5,8 +5,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-console.log('🤖 Initialized Gemini model');
+const model = genAI.getGenerativeModel({ 
+  model: "gemini-2.0-flash-exp",
+  generationConfig: {
+    temperature: 0.1,  // More precise outputs
+    topP: 0.1         // More focused on likely completions
+  }
+});
+console.log('🤖 Initialized Gemini 2.0 flash-exp model');
 
 // Initialize auth client
 const auth = new JWT({
@@ -36,11 +42,45 @@ interface InvoiceData {
   };
 }
 
+interface LogEntry {
+  description: string;
+  timeInMinutes: number;
+  hourlyRate: number;
+  date: string;
+  category?: string;
+}
+
+interface AnalyzedInvoiceData {
+  categories: Array<{
+    name: string;
+    subtasks: Array<{
+      description: string;
+      entries: LogEntry[];
+      totalTime: string;
+      totalAmount: string;
+    }>;
+    categoryTotal: string;
+  }>;
+  summary: {
+    totalHours: string;
+    totalAmount: string;
+    periodStart: string;
+    periodEnd: string;
+    mainDeliverables: string[];
+  };
+}
+
 export const invoiceService = {
   async generateInvoice(data: InvoiceData): Promise<string> {
     try {
       console.log('📄 Starting invoice generation for client:', data.client);
       
+      // First pass: Analyze the logs
+      console.log('🧠 Analyzing work logs...');
+      const analyzedData = await this.analyzeLogEntries(data.entries);
+      console.log('✅ Log analysis complete');
+
+      // Get template and create new document
       const defaultTemplateId = await templateService.getDefaultTemplateId();
       if (!defaultTemplateId) {
         console.error('❌ No default template found');
@@ -64,7 +104,7 @@ export const invoiceService = {
       console.log('🗓️ Creating new invoice document...');
       const newDocId = await templateService.createInvoiceFromTemplate(
         metadata.googleDocId,
-        `${data.client} Invoice`,
+        `${data.client} Invoice - ${date}`,
         date
       );
       console.log('✨ Created new invoice document:', newDocId);
@@ -80,140 +120,100 @@ export const invoiceService = {
       });
       console.log('✅ Document permissions set to allow editing');
 
+      // Get document structure
       console.log('📖 Fetching document structure...');
       const doc = await docs.documents.get({
         documentId: newDocId
       });
       console.log('📑 Document structure retrieved');
 
-      // Calculate total amount
-      const totalAmount = data.entries.reduce((sum, entry) => {
-        const hours = entry.timeInMinutes / 60;
-        return sum + (hours * entry.hourlyRate);
-      }, 0);
-      console.log('💰 Calculated total amount:', totalAmount);
+      // Send document directly to Gemini for analysis
+      const documentEditPrompt = `You are a billing expert at a prestigious consulting firm. Your task is to edit a Google Doc invoice template using the Google Docs API.
 
-      // Prepare the data in a clear format
-      const invoiceData = {
-        client: data.client,
-        date,
-        from: data.userSettings?.userName,
-        entries: data.entries.map(entry => ({
-          description: entry.description,
-          time: `${entry.timeInMinutes} minutes (${(entry.timeInMinutes / 60).toFixed(2)} hours)`,
-          rate: `$${entry.hourlyRate}/hour`,
-          amount: `$${((entry.timeInMinutes / 60) * entry.hourlyRate).toFixed(2)}`
-        })),
-        total: `$${totalAmount.toFixed(2)}`
-      };
+CONTEXT:
+- Client: ${data.client}
+- Period: ${analyzedData.summary.periodStart} to ${analyzedData.summary.periodEnd}
+- Total Amount: ${analyzedData.summary.totalAmount}
+- Total Hours: ${analyzedData.summary.totalHours}
+- Main Deliverables: ${analyzedData.summary.mainDeliverables.join(", ")}
 
-      const prompt = `You are an expert at analyzing Google Docs structure and generating precise edit requests. I have an invoice template that needs to be filled with data.
+DETAILED BREAKDOWN:
+${JSON.stringify(analyzedData.categories, null, 2)}
 
-Document Structure (this is a JSON representation of the Google Doc):
+YOUR TASK:
+1. Analyze the document structure provided below
+2. Generate a JSON array of Google Docs API requests to update the document
+3. Return ONLY the JSON array, no other text
+4. IMPORTANT: Do not generate empty replacements - skip any fields you don't have values for
+
+REQUIRED FORMAT:
+[
+  {
+    "replaceAllText": {
+      "containsText": { "text": "{client name}" },
+      "replaceText": "Actual Client Name"
+    }
+  }
+]
+
+RULES:
+- Only include replacements where you have actual content to insert
+- Skip any placeholders where you don't have a value
+- Never use empty strings as replacement text
+- Ensure all text replacements are meaningful
+
+DOCUMENT STRUCTURE:
 ${JSON.stringify(doc.data, null, 2)}
 
-Invoice Data to Insert:
-${JSON.stringify(invoiceData, null, 2)}
+Return ONLY a JSON array of Google Docs API requests. No other text or explanation.`;
 
-Analyze the document structure and generate a list of precise Google Docs API requests to insert/update the data in appropriate locations. The document is an invoice template, so look for logical places to insert each piece of information.
-
-Important Rules:
-1. Use exact character indices from the document structure
-2. For client name replacement, look for any existing client name or placeholder and replace the entire text
-3. When replacing text, make sure to capture the full text to be replaced including any surrounding whitespace or formatting
-4. Each edit must specify exact start and end indices
-5. Preserve existing formatting by using the right positions
-6. Look for contextual clues like "Bill To:", "Date:", etc. to find the right spots
-7. Do not partially replace text - always replace complete fields
-
-Return ONLY a JSON array of Google Docs API requests. Each request must follow one of these exact formats:
-
-For inserting text:
-{
-  "insertText": {
-    "location": {
-      "index": number  // Exact character position
-    },
-    "text": string
-  }
-}
-
-For replacing text:
-{
-  "replaceText": {
-    "text": string,
-    "location": {
-      "index": number  // Start position
-    },
-    "endIndex": number  // End position, must capture entire field
-  }
-}
-
-Focus on making precise edits at exact positions in the document.`;
-
-      console.log('🤖 Sending prompt to Gemini...');
-      const result = await model.generateContent(prompt);
+      console.log('🤖 Sending document to Gemini for analysis...');
+      const result = await model.generateContent([
+        { text: documentEditPrompt }
+      ]);
       const response = result.response.text();
       console.log('✅ Received response from Gemini');
       
-      // Parse the response into requests
+      // Parse and validate the edit requests
       let requests;
       try {
-        requests = JSON.parse(response);
+        // First try: direct JSON parse
+        requests = JSON.parse(response.trim());
         console.log('📝 Successfully parsed Gemini response into', requests.length, 'edit requests');
       } catch (e) {
-        console.warn('⚠️ Initial JSON parse failed, attempting to extract JSON from response');
-        const jsonMatch = response.match(/\[[\s\S]*\]/);
+        console.warn('⚠️ Initial JSON parse failed, attempting to extract JSON array');
+        // Second try: find anything that looks like a JSON array
+        const jsonMatch = response.match(/\[\s*\{[\s\S]*\}\s*\]/);
         if (!jsonMatch) {
-          console.error('❌ Could not extract valid JSON from Gemini response');
+          console.error('❌ Could not extract valid JSON array from response');
+          console.error('Raw response:', response);
           throw new Error('Invalid response format from Gemini');
         }
-        requests = JSON.parse(jsonMatch[0]);
+        requests = JSON.parse(jsonMatch[0].trim());
         console.log('📝 Successfully extracted and parsed', requests.length, 'edit requests');
       }
 
-      // Validate requests
-      console.log('🔍 Validating edit requests...');
-      requests = requests.map((request, index) => {
-        console.log(`Request ${index + 1}:`, 
-          request.insertText ? 
-            `Insert at index ${request.insertText.location.index}` : 
-            `Replace from index ${request.replaceText?.location.index} to ${request.replaceText?.endIndex}`
-        );
-        
-        if (request.insertText) {
-          // Validate index is within document bounds
-          const docLength = doc.data.body?.content?.reduce((sum: number, item: any) => 
-            sum + (item.paragraph?.elements?.reduce((len: number, el: any) => 
-              len + (el.textRun?.content?.length || 0), 0) || 0), 0) || 0;
-          
-          if (request.insertText.location.index > docLength) {
-            console.warn(`⚠️ Adjusting insert index ${request.insertText.location.index} to document length ${docLength}`);
-            request.insertText.location.index = docLength;
-          }
-          
-          return {
-            insertText: {
-              location: {
-                index: request.insertText.location.index
-              },
-              text: request.insertText.text
-            }
-          };
-        } else if (request.replaceText) {
-          return {
-            insertText: {
-              location: {
-                index: request.replaceText.location.index
-              },
-              text: request.replaceText.text
-            }
-          };
+      // Validate each request has required fields and non-empty values
+      requests = requests.filter(request => {
+        if (!request.replaceAllText?.containsText?.text || !request.replaceAllText?.replaceText) {
+          console.warn('⚠️ Skipping invalid request:', request);
+          return false;
         }
-        console.error('❌ Invalid request format detected');
-        throw new Error('Invalid request format');
+        if (request.replaceAllText.replaceText.trim() === '') {
+          console.warn('⚠️ Skipping empty replacement:', request);
+          return false;
+        }
+        return true;
       });
 
+      if (requests.length === 0) {
+        console.error('❌ No valid requests after filtering');
+        throw new Error('No valid edit requests generated');
+      }
+
+      console.log('✅ Validated', requests.length, 'edit requests');
+
+      // Apply the edits
       console.log('📤 Applying document updates...');
       await docs.documents.batchUpdate({
         documentId: newDocId,
@@ -268,5 +268,113 @@ Focus on making precise edits at exact positions in the document.`;
     }
 
     return requests;
+  },
+
+  async analyzeLogEntries(logEntries: LogEntry[]): Promise<AnalyzedInvoiceData> {
+    const logAnalysisPrompt = `You are a senior billing specialist at a consulting firm. Your task is to analyze work logs and organize them into a clear, professional invoice structure.
+
+INPUT:
+These are daily work logs containing:
+- Task descriptions
+- Time spent (in minutes)
+- Hourly rates
+- Dates
+- Other relevant details
+
+ANALYSIS STEPS:
+1. First, identify the major project components:
+   - Look for recurring themes in the work
+   - Find related tasks and subtasks
+   - Identify project milestones
+   - Note any special billing considerations
+
+2. Group tasks intelligently:
+   - Find natural categories (e.g., "Development", "Meetings", "Research")
+   - Identify subtasks within each category
+   - Look for task dependencies or sequences
+   - Group related work even if done on different days
+
+3. Create billing hierarchy:
+   EXAMPLE STRUCTURE:
+   {
+     "categories": [
+       {
+         "name": "Project Planning",
+         "subtasks": [
+           {
+             "description": "Initial client meeting",
+             "entries": [/* related log entries */],
+             "totalTime": "120 minutes",
+             "totalAmount": "$200.00"
+           }
+         ],
+         "categoryTotal": "$500.00"
+       }
+     ],
+     "summary": {
+       "totalHours": "10.5",
+       "totalAmount": "$1,050.00",
+       "periodStart": "2024-01-01",
+       "periodEnd": "2024-01-31",
+       "mainDeliverables": ["Feature A", "Documentation"]
+     }
+   }
+
+4. Consider client perspective:
+   - What tells the clearest story of work completed?
+   - How to show value delivered?
+   - What grouping makes most sense to client?
+   - How to make costs clearly justified?
+
+5. Identify key information for page 1:
+   - Total amount
+   - Project summary
+   - Main deliverables
+   - Billing period
+
+6. Organize details for page 2:
+   - Group similar tasks
+   - Show progression of work
+   - Highlight major milestones
+   - Present clear time/cost breakdown
+
+WORK LOGS TO ANALYZE:
+${JSON.stringify(logEntries, null, 2)}
+
+Return ONLY a JSON structure that follows the example format exactly.
+Think like a billing professional who needs to:
+1. Justify the value delivered
+2. Make the invoice easy to review
+3. Tell a clear story of the work
+4. Make costs transparent and logical
+5. Group related work sensibly`;
+
+    try {
+      console.log('🧠 Analyzing work logs...');
+      const result = await model.generateContent(logAnalysisPrompt);
+      const response = result.response.text();
+      
+      // Parse the response into structured data
+      let analyzedData: AnalyzedInvoiceData;
+      try {
+        analyzedData = JSON.parse(response);
+        console.log('✅ Successfully analyzed logs into', 
+          analyzedData.categories.length, 'categories');
+      } catch (e) {
+        console.warn('⚠️ Initial JSON parse failed, attempting to extract JSON');
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          console.error('❌ Could not extract valid JSON from analysis');
+          throw new Error('Invalid analysis format from Gemini');
+        }
+        analyzedData = JSON.parse(jsonMatch[0]);
+        console.log('✅ Successfully extracted and parsed log analysis');
+      }
+
+      return analyzedData;
+    } catch (error) {
+      console.error('❌ Error analyzing logs:', error);
+      throw error;
+    }
   }
 }; 

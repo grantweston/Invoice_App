@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { WIPEntry } from '@/src/types';
 import { useRouter } from 'next/navigation';
+import { useGeneratedInvoices } from '@/src/store/generatedInvoicesStore';
 
 interface DocGeneratorProps {
   client: string;
@@ -14,6 +15,7 @@ export default function DocGenerator({ client, entries }: DocGeneratorProps) {
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const addInvoice = useGeneratedInvoices((state) => state.addInvoice);
 
   const generateDoc = async () => {
     try {
@@ -50,6 +52,24 @@ export default function DocGenerator({ client, entries }: DocGeneratorProps) {
       const data = await response.json();
       if (data.documentId) {
         setDocumentId(data.documentId);
+        
+        // Calculate total amount
+        const totalAmount = entries.reduce((sum, entry) => {
+          const hours = (entry.timeInMinutes || 0) / 60;
+          return sum + (hours * entry.hourlyRate);
+        }, 0);
+
+        // Store the generated invoice
+        addInvoice({
+          id: data.documentId,
+          client,
+          date: new Date().toISOString(),
+          amount: totalAmount,
+          url: `https://docs.google.com/document/d/${data.documentId}/edit`
+        });
+
+        // Redirect back to invoices list
+        router.push('/invoices');
       }
     } catch (error) {
       console.error('Error generating document:', error);
