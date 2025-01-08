@@ -28,12 +28,19 @@ export default function InvoicesPage() {
     if (confirm('Are you sure you want to delete this invoice? This cannot be undone.')) {
       try {
         // Delete from Google Drive
-        await fetch(`/api/invoices/${invoice.id}`, {
+        const response = await fetch(`/api/invoices/${invoice.id}`, {
           method: 'DELETE'
         });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete from Google Drive');
+        }
         
         // Delete from local storage
         deleteInvoice(invoice.id);
+        
+        // Force refresh the page to ensure store is updated
+        router.refresh();
       } catch (error) {
         console.error('Error deleting invoice:', error);
         alert('Failed to delete invoice. Please try again.');

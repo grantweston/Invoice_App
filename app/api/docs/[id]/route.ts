@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
+import { NextResponse } from 'next/server';
 
 // Initialize auth client
 const auth = new JWT({
@@ -16,34 +16,23 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  console.log('GET request for document:', params.id);
   try {
-    console.log('Fetching document with auth:', {
-      email: process.env.GOOGLE_CLIENT_EMAIL,
-      hasKey: !!process.env.GOOGLE_PRIVATE_KEY,
-      scopes: auth.scopes,
-    });
+    const { id } = params;
+    console.log('🔍 Fetching document:', id);
 
+    // Get the document content
     const response = await docs.documents.get({
-      documentId: params.id,
+      documentId: id,
     });
 
-    console.log('Document fetch successful, content size:', 
-      JSON.stringify(response.data).length,
-      'paragraphs:', response.data.body?.content?.length
-    );
-
+    console.log('✅ Document fetched successfully');
     return NextResponse.json(response.data);
   } catch (error) {
-    console.error('Error getting document:', error);
-    if (error instanceof Error) {
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      });
-    }
-    return NextResponse.json({ error: 'Failed to get document', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    console.error('❌ Error getting document:', error);
+    return NextResponse.json(
+      { error: 'Failed to get document' },
+      { status: 500 }
+    );
   }
 }
 
@@ -51,29 +40,27 @@ export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  console.log('POST request for document:', params.id);
   try {
+    const { id } = params;
     const { updates } = await request.json();
-    console.log('Applying updates:', updates);
+    console.log('✏️ Updating document:', id);
+    console.log('Updates to apply:', updates);
 
-    await docs.documents.batchUpdate({
-      documentId: params.id,
+    // Apply the updates
+    const response = await docs.documents.batchUpdate({
+      documentId: id,
       requestBody: {
         requests: updates,
       },
     });
 
-    console.log('Document update successful');
-    return NextResponse.json({ success: true });
+    console.log('✅ Document updated successfully');
+    return NextResponse.json(response.data);
   } catch (error) {
-    console.error('Error updating document:', error);
-    if (error instanceof Error) {
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      });
-    }
-    return NextResponse.json({ error: 'Failed to update document', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    console.error('❌ Error updating document:', error);
+    return NextResponse.json(
+      { error: 'Failed to update document' },
+      { status: 500 }
+    );
   }
 } 

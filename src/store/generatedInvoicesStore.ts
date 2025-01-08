@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface GeneratedInvoice {
   id: string;  // Google Doc ID
@@ -21,21 +21,37 @@ export const useGeneratedInvoices = create<GeneratedInvoicesState>()(
     (set, get) => ({
       invoices: [],
       addInvoice: (invoice) => {
-        set((state) => ({
-          invoices: [invoice, ...state.invoices]
-        }));
+        set((state) => {
+          const newState = {
+            ...state,
+            invoices: [invoice, ...state.invoices]
+          };
+          return newState;
+        });
       },
       deleteInvoice: (id) => {
-        set((state) => ({
-          invoices: state.invoices.filter((invoice) => invoice.id !== id)
-        }));
+        set((state) => {
+          const newState = {
+            ...state,
+            invoices: state.invoices.filter((invoice) => invoice.id !== id)
+          };
+          return newState;
+        });
       },
       getInvoices: () => {
         return get().invoices;
       }
     }),
     {
-      name: 'generated-invoices-storage'
+      name: 'generated-invoices-storage',
+      storage: createJSONStorage(() => localStorage),
+      version: 1,
+      onRehydrateStorage: () => {
+        console.log('Hydrating invoices store...');
+        return (state) => {
+          console.log('Hydrated state:', state);
+        };
+      }
     }
   )
 ); 
