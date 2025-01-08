@@ -1,10 +1,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Template } from '@/src/store/invoiceStore';
+import { Template } from '@/src/services/templateService';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || '');
 
 export interface AnalyzedTemplate extends Template {
   content: string;
+  placeholders: {
+    client: string[];
+    project: string[];
+    billing: string[];
+    dates: string[];
+    custom: string[];
+  };
 }
 
 export async function analyzeTemplate(content: string, filename: string): Promise<AnalyzedTemplate> {
@@ -37,6 +44,9 @@ export async function analyzeTemplate(content: string, filename: string): Promis
         id: Date.now().toString(),
         name: filename,
         content,
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        createdTime: new Date().toISOString(),
+        webViewLink: '',
         placeholders: {
           client: placeholders.client || [],
           project: placeholders.project || [],
@@ -55,6 +65,9 @@ export async function analyzeTemplate(content: string, filename: string): Promis
         id: Date.now().toString(),
         name: filename,
         content,
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        createdTime: new Date().toISOString(),
+        webViewLink: '',
         placeholders: {
           client: allPlaceholders.filter(p => p.toLowerCase().includes('client')),
           project: allPlaceholders.filter(p => p.toLowerCase().includes('project')),
