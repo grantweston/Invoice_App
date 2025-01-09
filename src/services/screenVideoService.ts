@@ -1,18 +1,20 @@
+'use client';
+
 import { createTimeEntry } from '@/src/backend/services/timeEntryService';
 import { promises as fs } from 'fs';
 import path from 'path';
 import RecordRTC from 'recordrtc';
+import { useVideoStatusStore } from '@/src/store/videoStatusStore';
 
 export class ScreenVideoService {
   private recorder: RecordRTC | null = null;
   private isRecording = false;
   private recordingPath: string;
-  private currentStatus: { state: string; message: string } = {
-    state: 'idle',
-    message: ''
-  };
 
   constructor() {
+    if (typeof window === 'undefined') {
+      throw new Error('ScreenVideoService can only be used in browser environment');
+    }
     this.recordingPath = path.join(process.cwd(), 'recordings');
   }
 
@@ -25,6 +27,10 @@ export class ScreenVideoService {
       await fs.mkdir(this.recordingPath, { recursive: true });
       
       // Get screen stream
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        throw new Error('Screen capture is not supported in this environment');
+      }
+
       const stream = await navigator.mediaDevices.getDisplayMedia({ 
         video: true,
         audio: false
@@ -48,16 +54,16 @@ export class ScreenVideoService {
         date: new Date().toISOString()
       });
 
-      this.currentStatus = { 
+      useVideoStatusStore.getState().setStatus({ 
         state: 'recording', 
         message: 'Screen recording started' 
-      };
+      });
     } catch (error) {
       console.error('Failed to start recording:', error);
-      this.currentStatus = {
+      useVideoStatusStore.getState().setStatus({
         state: 'error',
         message: `Failed to start: ${error.message}`
-      };
+      });
     }
   }
 
@@ -74,16 +80,17 @@ export class ScreenVideoService {
       });
     } catch (error) {
       console.error('Failed to stop recording:', error);
-      this.currentStatus = {
+      useVideoStatusStore.getState().setStatus({
         state: 'error',
         message: `Failed to stop: ${error.message}`
-      };
+      });
     }
   }
 
   getStatus() {
-    return this.currentStatus;
+    return useVideoStatusStore.getState().status;
   }
 }
 
-export const screenVideo = new ScreenVideoService();
+// Only create instance in browser environment
+export const screenVideo = typeof window !== 'undefined' ? new ScreenVideoService() : null;
