@@ -1,36 +1,34 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from 'fs';
 import path from 'path';
+import os from 'os';
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData();
-    const video = formData.get('video') as File;
-    
+    const video = await request.blob();
     if (!video) {
-      throw new Error('No video file received');
+      return NextResponse.json({ error: "No video data received" }, { status: 400 });
     }
 
-    // Create recordings directory if it doesn't exist
-    const recordingsDir = path.join(process.cwd(), 'recordings');
-    await fs.mkdir(recordingsDir, { recursive: true });
+    // Use system temp directory instead of local directory
+    const tempDir = path.join(os.tmpdir(), 'invoice-app-recordings');
+    await fs.mkdir(tempDir, { recursive: true });
 
-    // Save the video file
+    // Use timestamp for unique filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = path.join(tempDir, `recording-${timestamp}.webm`);
+
+    // Convert blob to buffer and save
     const buffer = Buffer.from(await video.arrayBuffer());
-    const filename = path.join(recordingsDir, video.name);
     await fs.writeFile(filename, buffer);
 
-    console.log(`Recording saved successfully: ${filename}`);
-    console.log(`File size: ${buffer.length} bytes`);
-
     return NextResponse.json({ 
-      success: true, 
+      success: true,
       message: "Recording saved successfully",
-      filename: video.name,
-      size: buffer.length
+      path: filename
     });
   } catch (error: any) {
-    console.error('Failed to save recording:', error);
+    console.error("Error saving recording:", error);
     return NextResponse.json({ 
       success: false, 
       error: error.message 

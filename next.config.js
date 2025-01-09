@@ -8,6 +8,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   output: 'standalone',
+  // Ignore build-time files
+  distDir: '.next',
+  cleanDistDir: true,
   webpack: (config, { dev, isServer }) => {
     if (!dev && isServer) {
       // Externalize all node_modules on server
@@ -30,10 +33,17 @@ const nextConfig = {
     // Simple pattern to avoid recursion
     outputFileTracingExcludes: {
       '*': [
+        // Build and cache directories
         'node_modules/.pnpm/**',
         '.next/**',
+        'dist/**',
+        // Test and doc files
         'node_modules/**/+(test|tests)/**',
         'node_modules/**/*.+(md|d.ts|map)',
+        // Local storage directories
+        'recordings/**',
+        'captures/**',
+        'tmp/**',
       ],
     },
   }
