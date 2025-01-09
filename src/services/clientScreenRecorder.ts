@@ -3,6 +3,7 @@ export class ClientScreenRecorder {
   private isRecording: boolean = false;
   private screenshotBuffer: string[] = [];
   private screenshotCount: number = 0;
+  private cleanupTimeout: NodeJS.Timeout | null = null;
 
   async startRecording(onScreenBatch: (screenshots: string[]) => void) {
     try {
@@ -45,11 +46,15 @@ export class ClientScreenRecorder {
       console.log('🖼️ Canvas initialized', { width: canvas.width, height: canvas.height });
       console.log('📸 Starting screenshot capture...');
 
+      // Set up cleanup timeout
+      this.setupCleanupTimeout();
+
       // Take a screenshot every second
       const interval = setInterval(() => {
         if (!this.isRecording) {
           console.log('⏹️ Recording stopped, clearing interval');
           clearInterval(interval);
+          this.cleanupScreenshots();
           return;
         }
 
@@ -65,18 +70,41 @@ export class ClientScreenRecorder {
           // Process when we have 60 screenshots (1 minute)
           if (this.screenshotCount >= 60) {
             console.log('📦 Minute complete, processing screenshots...');
-            onScreenBatch([...this.screenshotBuffer]);
-            this.screenshotBuffer = [];
-            this.screenshotCount = 0;
+            const screenshots = [...this.screenshotBuffer];
+            this.cleanupScreenshots(); // Clean up before processing
+            onScreenBatch(screenshots);
           }
         } catch (error) {
           console.error('❌ Failed to capture screenshot:', error);
+          this.cleanupScreenshots();
         }
       }, 1000);
 
     } catch (error) {
       console.error('❌ Failed to start recording:', error);
+      this.cleanupScreenshots();
       throw error;
+    }
+  }
+
+  private setupCleanupTimeout() {
+    // Clean up screenshots every 2 minutes if they haven't been processed
+    if (this.cleanupTimeout) {
+      clearTimeout(this.cleanupTimeout);
+    }
+    this.cleanupTimeout = setTimeout(() => {
+      console.log('🧹 Cleaning up old screenshots...');
+      this.cleanupScreenshots();
+    }, 120000);
+  }
+
+  private cleanupScreenshots() {
+    console.log(`🗑️ Cleaning up ${this.screenshotBuffer.length} screenshots`);
+    this.screenshotBuffer = [];
+    this.screenshotCount = 0;
+    if (this.cleanupTimeout) {
+      clearTimeout(this.cleanupTimeout);
+      this.cleanupTimeout = null;
     }
   }
 
@@ -87,6 +115,7 @@ export class ClientScreenRecorder {
       this.mediaStream.getTracks().forEach(track => track.stop());
       this.mediaStream = null;
     }
+    this.cleanupScreenshots();
     document.title = 'Recording stopped';
     console.log('✅ Recording stopped');
   }
