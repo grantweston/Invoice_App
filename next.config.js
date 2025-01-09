@@ -12,9 +12,21 @@ const nextConfig = {
   },
   // Disable unnecessary features
   optimizeFonts: false,
-  // Increase build memory limit
+  // Add output configuration
+  output: 'standalone',
+  // Experimental features
   experimental: {
+    // Increase memory limit
     memoryBasedWorkersCount: true,
+    // Enable output tracing
+    outputFileTracingRoot: "/",
+    outputFileTracingExcludes: {
+      '*': [
+        'node_modules/@swc/core-linux-x64-gnu',
+        'node_modules/@swc/core-linux-x64-musl',
+        'node_modules/@esbuild/linux-x64',
+      ],
+    },
   }
 }
 
