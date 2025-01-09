@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { analyzeScreenshots } from "@/src/services/screenAnalysisService";
 
+// Add runtime configuration
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const { screenshots, currentTasks } = await request.json();
