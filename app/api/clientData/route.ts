@@ -3,6 +3,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientWithProjects } from "@/src/backend/services/timeEntryService";
 
+// Mark route as dynamic
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
