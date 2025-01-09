@@ -1,5 +1,3 @@
-"use server";
-
 import { NextRequest, NextResponse } from "next/server";
 import { getClientWithProjects } from "@/src/backend/services/timeEntryService";
 
