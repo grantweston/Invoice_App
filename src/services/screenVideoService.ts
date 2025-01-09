@@ -1,4 +1,3 @@
-import { getSupabase } from '@/src/backend/db/supabaseClient';
 import { createTimeEntry } from '@/src/backend/services/timeEntryService';
 import { promises as fs } from 'fs';
 import path from 'path';

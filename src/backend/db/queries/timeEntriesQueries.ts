@@ -1,27 +1,21 @@
 "use server";
 
-import { getSupabase } from '../supabaseClient';
 import { TimeEntry } from '@/src/backend/models/TimeEntry';
 
+// Mock data store
+let mockTimeEntries: TimeEntry[] = [];
+
 export async function insertTimeEntry(entry: TimeEntry) {
-  const supabase = await getSupabase();
-  const dbEntry = {
-    client_id: entry.clientId,
-    project_id: entry.projectId,
-    hours: entry.hours,
-    description: entry.description,
-    date: entry.date,
+  const newEntry = {
+    ...entry,
+    id: Date.now().toString() // Mock ID generation
   };
-  const { data, error } = await supabase.from('time_entries').insert(dbEntry).select();
-  if (error) throw error;
-  return data;
+  mockTimeEntries.push(newEntry);
+  return [newEntry];
 }
 
 export async function fetchAllTimeEntries() {
-  const supabase = await getSupabase();
-  const { data, error } = await supabase.from('time_entries').select('*');
-  if (error) throw error;
-  return data;
+  return mockTimeEntries;
 }
 
 export async function fetchClientWithProjects(clientId: string) {
