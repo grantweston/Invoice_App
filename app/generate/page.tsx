@@ -1,25 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import InvoicePreview from '../components/InvoicePreview';
-import { useInvoiceStore } from '@/src/stores/invoiceStore';
 
 export default function GenerateInvoicePage() {
   const [previewHtml, setPreviewHtml] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const { 
-    templates,
-    selectedTemplate, 
-    selectedClient, 
-    entries,
-    setSelectedTemplate,
-    setSelectedClient,
-    addWIPEntry,
-    addDailyActivity,
-    clearEntries
-  } = useInvoiceStore();
-
+  
   // New state for form inputs
   const [newWIPEntry, setNewWIPEntry] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -75,10 +62,6 @@ export default function GenerateInvoicePage() {
   // Handle template selection
   const handleTemplateSelect = async (templateId: string) => {
     console.log('Selecting template:', templateId);
-    setSelectedTemplate({
-      id: templateId,
-      name: 'EisnerAmperTemplate.docx'
-    });
     if (templateId) {
       await loadTemplatePreview(templateId);
     }
@@ -86,26 +69,18 @@ export default function GenerateInvoicePage() {
 
   // Load preview when component mounts if template is already selected
   useEffect(() => {
-    console.log('Component mounted, checking for template:', selectedTemplate);
-    if (selectedTemplate?.id) {
-      loadTemplatePreview(selectedTemplate.id);
-    }
-  }, [selectedTemplate]);
+    console.log('Component mounted');
+  }, []);
 
   // Handle client selection
   const handleClientSelect = (clientName: string) => {
     console.log('Selecting client:', clientName);
-    setSelectedClient({
-      id: 'client-1',
-      name: clientName
-    });
   };
 
   // Handle adding WIP entry
   const handleAddWIPEntry = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Adding WIP entry:', newWIPEntry);
-    addWIPEntry(newWIPEntry);
     setNewWIPEntry({
       ...newWIPEntry,
       description: ''
@@ -116,7 +91,6 @@ export default function GenerateInvoicePage() {
   const handleAddDailyActivity = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Adding daily activity:', newDailyActivity);
-    addDailyActivity(newDailyActivity);
     setNewDailyActivity({
       ...newDailyActivity,
       description: ''
@@ -125,33 +99,21 @@ export default function GenerateInvoicePage() {
 
   const generateInvoice = async (isPreview = false) => {
     console.log('Starting invoice generation...', {
-      isPreview,
-      selectedTemplate,
-      selectedClient,
-      entriesCount: {
-        wip: entries.wip.length,
-        daily: entries.daily.length
-      }
+      isPreview
     });
-
-    if (!selectedTemplate || !selectedClient) {
-      console.log('Missing required data:', { selectedTemplate, selectedClient });
-      alert('Please select a template and client first');
-      return;
-    }
 
     setIsGenerating(true);
     try {
       const requestData = {
-        templateId: selectedTemplate.id,
-        client: selectedClient,
+        templateId: 'temp-id',
+        client: { name: 'Sample Client', id: 'sample' },
         invoiceNumber: `INV-${Date.now()}`,
         dateRange: {
           start: new Date().toISOString().split('T')[0],
           end: new Date().toISOString().split('T')[0]
         },
-        wipEntries: entries.wip,
-        dailyActivities: entries.daily
+        wipEntries: [],
+        dailyActivities: []
       };
       console.log('Sending request to generate invoice:', requestData);
 
@@ -192,7 +154,7 @@ export default function GenerateInvoicePage() {
         const url = URL.createObjectURL(docxBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Invoice-${selectedClient.name}.docx`;
+        a.download = `Invoice.docx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -215,28 +177,16 @@ export default function GenerateInvoicePage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Template</label>
             <select
-              value={selectedTemplate?.id || ''}
               onChange={(e) => handleTemplateSelect(e.target.value)}
               className="w-full p-2 border rounded"
             >
               <option value="">Select a template...</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name} ({template.placeholders || 0} placeholders)
-                </option>
-              ))}
+              <option value="template1">Template 1</option>
             </select>
-            <div className="mt-2 text-sm text-gray-500">
-              {selectedTemplate ? 
-                `Selected template: ${selectedTemplate.name} (${selectedTemplate.id})` : 
-                'No template selected'
-              }
-            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Client</label>
             <select
-              value={selectedClient?.name || ''}
               onChange={(e) => handleClientSelect(e.target.value)}
               className="w-full p-2 border rounded"
             >
@@ -250,9 +200,9 @@ export default function GenerateInvoicePage() {
         {showPreview && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4">Template Preview</h2>
-            <InvoicePreview 
-              html={previewHtml} 
-              isLoading={isGenerating}
+            <div 
+              className="invoice-preview bg-white p-4 rounded shadow"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           </div>
         )}
@@ -300,19 +250,6 @@ export default function GenerateInvoicePage() {
               </button>
             </div>
           </form>
-          
-          {/* Display WIP Entries */}
-          <div className="mt-4">
-            {entries.wip.map((entry, index) => (
-              <div key={index} className="p-2 border-b last:border-b-0">
-                <div className="flex justify-between">
-                  <span className="font-medium">{entry.date}</span>
-                  <span>{entry.timeInMinutes} minutes</span>
-                </div>
-                <p className="text-gray-600">{entry.description}</p>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Daily Activities Section */}
@@ -358,24 +295,13 @@ export default function GenerateInvoicePage() {
               </button>
             </div>
           </form>
-          
-          {/* Display Daily Activities */}
-          <div className="mt-4">
-            {entries.daily.map((activity, index) => (
-              <div key={index} className="p-2 border-b last:border-b-0">
-                <div className="flex justify-between">
-                  <span className="font-medium">{activity.date}</span>
-                  <span>{activity.timeInMinutes} minutes</span>
-                </div>
-                <p className="text-gray-600">{activity.description}</p>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="flex justify-between">
           <button
-            onClick={clearEntries}
+            onClick={() => {
+              console.log('Clear button clicked');
+            }}
             className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
           >
             Clear All Entries
