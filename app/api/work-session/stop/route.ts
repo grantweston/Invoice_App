@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { screenCapture } from "@/src/services/screenCaptureService";
 
 export async function POST() {
   try {
-    await screenCapture.stopCapturing();  // This stops the capture
     return NextResponse.json({ 
       success: true, 
-      message: "Screen capture stopped" 
+      message: "Work session stopped" 
     });
   } catch (error: any) {
     return NextResponse.json({ 
