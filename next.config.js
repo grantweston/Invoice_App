@@ -1,13 +1,29 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Disable file tracing entirely for now
+  output: 'standalone',
   experimental: {
-    // Exclude certain directories from build traces
-    outputFileTracingIgnores: [
-      'captures/**',
-      'recordings/**',
-      '**/node_modules/canvas/**',
-      '**/node_modules/jsdom/**'
-    ],
+    // Disable automatic static optimization
+    isrMemoryCacheSize: 0,
+    // Explicitly configure tracing
+    outputFileTracingRoot: process.cwd(),
+    outputFileTracingExcludes: {
+      '*': [
+        'node_modules/@swc/core-linux-x64-gnu',
+        'node_modules/@swc/core-linux-x64-musl',
+        'node_modules/@esbuild/linux-x64',
+        '**/node_modules/canvas/**',
+        '**/node_modules/jsdom/**',
+        'captures/**',
+        'recordings/**',
+        '.next/**',
+        'dist/**',
+      ],
+    },
+    // Only include necessary files
+    outputFileTracingIncludes: {
+      '/': ['package.json'],
+    },
   },
   // Add more specific webpack configuration
   webpack: (config, { isServer }) => {
