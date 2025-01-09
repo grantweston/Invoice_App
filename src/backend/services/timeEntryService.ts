@@ -1,5 +1,3 @@
-"use server";
-
 import { insertTimeEntry, fetchAllTimeEntries, fetchClientWithProjects } from '../db/queries/timeEntriesQueries';
 import { TimeEntry } from '../models/TimeEntry';
 
