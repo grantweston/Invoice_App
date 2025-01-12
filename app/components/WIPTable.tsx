@@ -428,8 +428,15 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
           </tr>
         </thead>
         <tbody className="bg-white dark:bg-dark-bg divide-y divide-gray-200 dark:divide-dark-border">
-          {entries.map((entry) => (
-            <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-dark-bg-lighter">
+          {entries.map((entry, idx) => (
+            <tr
+              key={`${entry.id}-${entry.client}-${entry.project}`}
+              className={`group border-b border-gray-100 dark:border-dark-border transition-colors duration-150
+                ${idx % 2 === 0 ? 
+                  'bg-gray-50/50 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-[#222222]' : 
+                  'bg-white dark:bg-[#121212] hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
+                }`}
+            >
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{entry.client}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{entry.project}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{entry.partner || ''}</td>
