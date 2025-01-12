@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { clientDocsService } from "./clientDocsService";
-import { useWIPStore } from "@/src/store/wipStore";
-import { useDailyLogs } from "@/src/store/dailyLogs";
+import { useWIPStore, useDailyLogs } from "@/src/store/supabaseStores";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });

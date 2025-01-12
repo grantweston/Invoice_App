@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import WIPTable from "@/app/components/WIPTable";
-import { useDailyLogs } from "@/src/store/dailyLogs";
+import { useDailyLogs } from "@/src/store/supabaseStores";
 import type { WIPEntry } from "@/src/types";
 import { exportToExcel } from '@/src/services/excelExportService';
 

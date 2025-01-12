@@ -5,9 +5,7 @@ import { ClientScreenRecorder } from '@/src/services/clientScreenRecorder';
 import type { ScreenAnalysis } from '@/src/services/screenAnalysisService';
 import WIPTable from "@/app/components/WIPTable";
 import type { WIPEntry } from "@/src/types";
-import { useDailyLogs } from "@/src/store/dailyLogs";
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { useDailyLogs, useWIPStore } from "@/src/store/supabaseStores";
 import { useNormalizedNames } from "@/src/store/normalizedNames";
 import { 
   findRelatedEntries, 
@@ -24,27 +22,6 @@ const recorder = new ClientScreenRecorder();
 interface PageClientProps {
   initialEntries: WIPEntry[];
 }
-
-interface WIPState {
-  entries: WIPEntry[];
-  setEntries: (entries: WIPEntry[] | ((prev: WIPEntry[]) => WIPEntry[])) => void;
-  clearEntries: () => void;
-}
-
-const useWIPStore = create<WIPState>()(
-  persist(
-    (set) => ({
-      entries: [],
-      setEntries: (entries) => set((state) => ({
-        entries: typeof entries === 'function' ? entries(state.entries) : entries
-      })),
-      clearEntries: () => set({ entries: [] }),
-    }),
-    {
-      name: 'wip-storage',
-    }
-  )
-);
 
 // Helper function to merge multiple descriptions intelligently
 function mergeMultipleDescriptions(...descriptions: string[]): string {
@@ -185,8 +162,6 @@ export default function PageClient({ initialEntries }: PageClientProps) {
   
   // Use persisted WIP store instead of local state
   const wipEntries = useWIPStore((state) => state.entries);
-  const setWipEntries = useWIPStore((state) => state.setEntries);
-  const clearWipEntries = useWIPStore((state) => state.clearEntries);
 
   // Format currency helper
   const formatCurrency = (amount: number): string => {
@@ -212,18 +187,29 @@ export default function PageClient({ initialEntries }: PageClientProps) {
   // Initialize WIP entries from store or initial entries
   useEffect(() => {
     const initializeEntries = async () => {
-      if (initialEntries.length > 0 && wipEntries.length === 0) {
-        try {
+      console.log('🔄 Initializing entries...');
+      console.log('Initial entries:', initialEntries);
+      console.log('Current WIP entries:', wipEntries);
+      
+      try {
+        // First load from Supabase
+        await useWIPStore.getState().loadEntries();
+        console.log('✅ Loaded entries from Supabase');
+        
+        // Then add any new initial entries if needed
+        if (initialEntries.length > 0 && wipEntries.length === 0) {
+          console.log('💾 Adding initial entries to Supabase...');
           const normalizedEntries = await normalizeEntries(initialEntries);
-          setWipEntries(normalizedEntries);
-        } catch (error) {
-          console.error("Error normalizing initial entries:", error);
+          await useWIPStore.getState().setEntries(normalizedEntries);
+          console.log('✅ Initial entries added to Supabase');
         }
+      } catch (error) {
+        console.error("❌ Error initializing entries:", error);
       }
     };
     
     initializeEntries();
-  }, [initialEntries, wipEntries.length, setWipEntries]);
+  }, [initialEntries, wipEntries.length]);
 
   // Remove periodic normalization effect
   // We'll only normalize on blur now
@@ -252,74 +238,68 @@ export default function PageClient({ initialEntries }: PageClientProps) {
     setShowSettings(false);
   };
 
-  // Update new entries with defaults
-  const updateWipFromDaily = async (newDailyEntry: WIPEntry) => {
-    try {
-      // First, check if this entry should be merged with an existing WIP entry
-      for (const existingEntry of wipEntries) {
-        const { shouldMerge, confidence } = await shouldEntriesBeMerged(existingEntry, newDailyEntry);
-        
-        if (shouldMerge && confidence > 0.7) {
-          console.log('🔄 Merging with existing WIP entry:', existingEntry.id);
-          
-          // Update the existing entry's time
-          const updatedEntries = await Promise.all(wipEntries.map(async entry => {
-            if (entry.id === existingEntry.id) {
-              // Increment time by 1 minute (the daily entry's duration)
-              const newMinutes = (entry.timeInMinutes || 0) + (newDailyEntry.timeInMinutes || 0);
-              
-              // Create updated entry with new time and potentially new client
-              let updatedEntry = {
-                ...entry,
-                timeInMinutes: newMinutes,
-                hours: newMinutes / 60,
-                // If client was unknown but now known, update it
-                client: entry.client === "Unknown" && newDailyEntry.client !== "Unknown" 
-                  ? newDailyEntry.client 
-                  : entry.client,
-                // Add the new daily entry ID to the associations
-                associatedDailyIds: [...(entry.associatedDailyIds || []), newDailyEntry.id]
-              };
+  // Update WIP entries with defaults
+  const updateWipFromDaily = async (newEntry: { 
+    id: number;
+    client: string;
+    project: string;
+    description: string;
+    timeInMinutes: number;
+    partner: string;
+    hourlyRate: number;
+    startDate: number;
+    lastWorkedDate: number;
+    associatedDailyIds: number[];
+    subEntries: any[];
+  }) => {
+    console.log('🔄 Processing new daily entry:', newEntry);
+    
+    // Get current entries directly from store
+    const currentEntries = useWIPStore.getState().entries;
+    
+    // Find matching entry by client and project from today
+    const existingEntry = currentEntries.find(entry => 
+      entry.client === newEntry.client && 
+      entry.project === newEntry.project &&
+      new Date(entry.startDate).toDateString() === new Date(newEntry.startDate).toDateString()
+    );
 
-              // Compare descriptions synchronously
-              try {
-                const comparison = await compareDescriptions(entry.description, newDailyEntry.description);
-                if (comparison.shouldUpdate && comparison.updatedDescription) {
-                  console.log('📝 Updating description based on new daily entry');
-                  updatedEntry = {
-                    ...updatedEntry,
-                    description: comparison.updatedDescription
-                  };
-                }
-              } catch (error) {
-                console.error('Error comparing descriptions:', error);
-              }
+    if (existingEntry) {
+      console.log('📝 Found existing entry to update:', existingEntry);
+      
+      // Update the existing entry
+      const updatedEntry: WIPEntry = {
+        ...existingEntry,
+        timeInMinutes: existingEntry.timeInMinutes + 1,
+        hours: (existingEntry.timeInMinutes + 1) / 60,
+        lastWorkedDate: newEntry.lastWorkedDate,
+        description: newEntry.description,
+        associatedDailyIds: Array.from(new Set([...(existingEntry.associatedDailyIds || []), newEntry.id]))
+      };
 
-              return updatedEntry;
-            }
-            return entry;
-          }));
+      console.log('✏️ Updating existing entry:', updatedEntry);
+      await useWIPStore.getState().updateEntry(existingEntry.id.toString(), updatedEntry);
+      
+    } else {
+      console.log('➕ Creating new WIP entry from daily entry');
+      
+      // Create new entry starting at 1 minute
+      const newWipEntry: WIPEntry = {
+        client: newEntry.client,
+        project: newEntry.project,
+        timeInMinutes: 1,
+        hours: 1/60,
+        description: newEntry.description,
+        startDate: newEntry.startDate,
+        lastWorkedDate: newEntry.lastWorkedDate,
+        hourlyRate: newEntry.hourlyRate,
+        partner: newEntry.partner,
+        subEntries: [],
+        associatedDailyIds: [newEntry.id]
+      };
 
-          setWipEntries(updatedEntries);
-          return; // Exit after finding and updating a match
-        }
-      }
-
-      // If no match found, create a new WIP entry
-      console.log('➕ Creating new WIP entry for daily entry');
-      const updatedEntries = [...wipEntries, { 
-        ...newDailyEntry,
-        partner: defaultPartner,
-        hourlyRate: defaultRate,
-        associatedDailyIds: [newDailyEntry.id] // Initialize with the current daily entry ID
-      }];
-
-      // Normalize and merge similar entries
-      const normalized = await normalizeEntries(updatedEntries);
-      console.log('🔄 Normalized entries:', normalized);
-      setWipEntries(normalized);
-    } catch (error) {
-      console.error("Error updating WIP from daily:", error);
+      console.log('💾 Adding new WIP entry:', newWipEntry);
+      await useWIPStore.getState().addEntry(newWipEntry);
     }
   };
 
@@ -332,7 +312,7 @@ export default function PageClient({ initialEntries }: PageClientProps) {
       const normalizedWipEntries = await normalizeEntries(wipEntries);
       
       // Update WIP store
-      setWipEntries(normalizedWipEntries);
+      useWIPStore.getState().setEntries(normalizedWipEntries);
     } catch (error) {
       console.error("Error normalizing entries:", error);
     }
@@ -344,7 +324,7 @@ export default function PageClient({ initialEntries }: PageClientProps) {
       console.log('🧹 Clearing all data...');
       
       // Clear WIP store
-      clearWipEntries();
+      useWIPStore.getState().clearEntries();
       
       // Clear Daily Logs store
       clearDailyLogs();
@@ -353,10 +333,6 @@ export default function PageClient({ initialEntries }: PageClientProps) {
       setStatus('');
       setLastUpdateTime(null);
       
-      // Force reload the stores
-      useWIPStore.persist.clearStorage();
-      useDailyLogs.persist.clearStorage();
-      
       console.log('✅ All data cleared successfully');
       setStatus('All data cleared');
     }
@@ -364,105 +340,161 @@ export default function PageClient({ initialEntries }: PageClientProps) {
 
   // Handle new screen analysis
   const handleScreenBatch = async (screenshots: string[]) => {
+    const now = Date.now(); // Current timestamp in milliseconds
+    
+    let dailyEntryCreated = false;
+    let createdDailyEntry = null;
+
     try {
-      if (screenshots.length < 60) {
-        console.log(`⏳ Waiting for more screenshots (${screenshots.length}/60)...`);
-        return;
+      // 1. Validate screenshots
+      if (!Array.isArray(screenshots) || screenshots.length === 0) {
+        throw new Error('No screenshots provided');
       }
 
-      const now = new Date();
-      console.log(`📤 Sending batch of ${screenshots.length} screenshots for analysis...`);
+      // 2. Get current partner
+      const currentPartner = activePartner || defaultPartner || '';
 
+      // 3. Analyze screenshots
+      console.log('🔍 Analyzing screenshots...');
       const response = await fetch('/api/analyze-screen', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          screenshots,
-          currentTasks: wipEntries
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ screenshots })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to analyze screenshots');
+        throw new Error(`Failed to analyze screenshots: [${response.status} ${response.statusText}]`);
       }
 
-      const analysis: ScreenAnalysis = await response.json();
-      console.log('📊 Received analysis:', analysis);
+      const analysis = await response.json();
+      console.log('✅ Analysis complete:', analysis);
+
+      // Validate and normalize analysis data
+      const clientName = analysis.client_name === 'unknown' ? 'Unspecified Client' : analysis.client_name;
+      const projectName = analysis.project || 'General Work';
+      const description = analysis.activity_description || 'No description available';
+
+      // 4. Create daily entry
+      const dailyEntry = {
+        client: clientName,
+        project: projectName,
+        description: description,
+        timeInMinutes: 1,
+        hours: 1/60,
+        partner: currentPartner,
+        hourlyRate: 150,
+        startDate: now,
+        lastWorkedDate: now,
+        subEntries: [],
+        associatedDailyIds: []
+      };
+
+      // 5. Add daily entry to Supabase
+      try {
+        console.log('📝 Creating daily entry:', dailyEntry);
+        createdDailyEntry = await useDailyLogs.getState().addLog(dailyEntry);
+        
+        if (!createdDailyEntry?.id) {
+          throw new Error('Daily entry created but no ID returned');
+        }
+        
+        dailyEntryCreated = true;
+        console.log('✅ Daily entry created successfully:', createdDailyEntry);
+        
+      } catch (error) {
+        console.error('❌ Failed to create daily entry:', error);
+        throw error;
+      }
       
-      if (analysis.confidence_score > 0) {
-        // Create a single daily entry for this minute
-        const dailyEntry = {
-          id: Date.now(),
-          client: analysis.client_name,
-          project: analysis.project_name,
-          timeInMinutes: 1,
-          hours: 1/60,
-          partner: activePartner || defaultPartner,
-          hourlyRate: defaultRate,
-          description: analysis.detailed_description || analysis.activity_description || 'No description available',
-          associatedDailyIds: [],
-          subEntries: [],
-          startDate: Date.now(),
-          lastWorkedDate: Date.now()
-        };
-
-        // Add the daily entry
-        addDailyLog(dailyEntry);
-        console.log('📝 Created daily entry:', dailyEntry);
-
-        // Look for matching WIP entry to update
-        const matchingEntry = wipEntries.find(entry => {
-          if (analysis.client_name !== "Unknown") {
-            return isSimilarName(entry.client, analysis.client_name) &&
-                   isSimilarName(entry.project, analysis.project_name);
+      // 6. Update WIP Entry
+      try {
+        // Get fresh entries from store
+        const currentEntries = useWIPStore.getState().entries;
+        
+        // Find existing entry from today only
+        const today = new Date(now).setHours(0, 0, 0, 0);
+        const existingEntry = currentEntries.find(entry => {
+          const entryDate = new Date(entry.startDate).setHours(0, 0, 0, 0);
+          const clientMatch = entry.client.toLowerCase() === clientName.toLowerCase();
+          const projectMatch = entry.project.toLowerCase() === projectName.toLowerCase();
+          const isToday = entryDate === today;
+          
+          if (clientMatch && projectMatch && isToday) {
+            console.log('🎯 Found matching entry:', entry);
+            return true;
           }
-          return isSimilarName(entry.project, analysis.project_name);
+          return false;
         });
 
-        if (matchingEntry) {
-          // Update existing WIP entry
+        if (existingEntry) {
+          console.log('📝 Updating existing WIP entry:', existingEntry.id);
+          console.log('Current time:', existingEntry.timeInMinutes, 'minutes');
+          
+          // Ensure we're only adding 1 minute
+          const newTimeInMinutes = existingEntry.timeInMinutes + 1;
+          console.log('New time will be:', newTimeInMinutes, 'minutes');
+          
           const updatedEntry = {
-            ...matchingEntry,
-            client: matchingEntry.client === "Unknown" && analysis.client_name !== "Unknown" 
-              ? analysis.client_name 
-              : matchingEntry.client,
-            timeInMinutes: getTimeInMinutes(matchingEntry) + 1,
-            hours: (getTimeInMinutes(matchingEntry) + 1) / 60,
-            description: mergeDescriptions(matchingEntry.description, analysis.activity_description || ''),
-            associatedDailyIds: [...(matchingEntry.associatedDailyIds || []), dailyEntry.id],
-            lastWorkedDate: Date.now()
+            ...existingEntry,
+            timeInMinutes: newTimeInMinutes,
+            hours: newTimeInMinutes / 60,
+            lastWorkedDate: now,
+            description: mergeDescriptions(existingEntry.description, description),
+            associatedDailyIds: Array.from(new Set([
+              ...(existingEntry.associatedDailyIds || []),
+              createdDailyEntry.id
+            ]))
           };
           
-          setWipEntries(prev => prev.map(entry => 
-            entry.id === matchingEntry.id ? updatedEntry : entry
-          ));
+          await useWIPStore.getState().updateEntry(existingEntry.id.toString(), updatedEntry);
+          console.log('✅ WIP entry updated successfully');
+          
         } else {
-          // Create new WIP entry
-          const newEntry = {
-            id: Date.now() + 1,
-            client: analysis.client_name,
-            project: analysis.project_name,
-            timeInMinutes: 1,
-            hours: 1/60,
-            partner: activePartner || defaultPartner,
-            hourlyRate: defaultRate,
-            description: analysis.activity_description || 'No description available',
-            associatedDailyIds: [dailyEntry.id],
-            subEntries: [],
-            startDate: Date.now(),
-            lastWorkedDate: Date.now()
+          console.log('📝 Creating new WIP entry');
+          
+          const newWipEntry = {
+            ...dailyEntry,
+            timeInMinutes: 1, // Start with exactly 1 minute
+            hours: 1/60,     // Start with exactly 1/60 hour
+            associatedDailyIds: [createdDailyEntry.id]
           };
           
-          setWipEntries(prev => [...prev, newEntry]);
+          await useWIPStore.getState().addEntry(newWipEntry);
+          console.log('✅ New WIP entry created successfully');
         }
-
-        setLastUpdateTime(now);
+        
+        setLastUpdateTime(new Date(now));
+        setStatus('Activity recorded successfully');
+        console.log('✨ Screenshot batch processed successfully');
+        
+      } catch (error) {
+        console.error('❌ Failed to update WIP entry:', error);
+        setStatus('Warning: Daily log saved but WIP entry update failed');
+        
+        // Clean up daily entry if WIP entry failed
+        if (dailyEntryCreated && createdDailyEntry?.id) {
+          try {
+            await useDailyLogs.getState().deleteLogs(createdDailyEntry);
+            console.log('🧹 Cleaned up daily entry after WIP entry failure');
+          } catch (cleanupError) {
+            console.error('❌ Failed to clean up daily entry:', cleanupError);
+          }
+        }
       }
+      
     } catch (error) {
-      console.error('❌ Failed to analyze screenshots:', error);
-      setStatus('Failed to analyze screen activity');
+      console.error('❌ Screenshot batch processing failed:', error);
+      setStatus('Error: Failed to process screenshots');
+      
+      // Clean up daily entry if WIP entry failed
+      if (dailyEntryCreated && createdDailyEntry?.id) {
+        try {
+          await useDailyLogs.getState().deleteLogs(createdDailyEntry);
+          console.log('🧹 Cleaned up daily entry after WIP entry failure');
+        } catch (cleanupError) {
+          console.error('❌ Failed to clean up daily entry:', cleanupError);
+        }
+      }
     }
   };
 
@@ -504,11 +536,7 @@ export default function PageClient({ initialEntries }: PageClientProps) {
     if (!oldEntry) return;
 
     // Update WIP entries without normalization
-    setWipEntries((prev: WIPEntry[]) => 
-      prev.map(entry => 
-        entry.id === updatedEntry.id ? updatedEntry : entry
-      )
-    );
+    useWIPStore.getState().updateEntry(updatedEntry.id.toString(), updatedEntry);
 
     // If client name changed, update matching entries in daily logs
     if (oldEntry.client !== updatedEntry.client) {
@@ -526,7 +554,7 @@ export default function PageClient({ initialEntries }: PageClientProps) {
       const normalizedEntries = await normalizeEntries(wipEntries);
       if (JSON.stringify(normalizedEntries) !== JSON.stringify(wipEntries)) {
         console.log('🔄 Normalizing entries after edit...');
-        setWipEntries(normalizedEntries);
+        useWIPStore.getState().setEntries(normalizedEntries);
       }
     } catch (error) {
       console.error("Error normalizing entries:", error);
@@ -537,9 +565,7 @@ export default function PageClient({ initialEntries }: PageClientProps) {
   const handleEntryDelete = (entryToDelete: WIPEntry) => {
     if (window.confirm('Are you sure you want to delete this entry?')) {
       // Remove from WIP entries
-      setWipEntries((prev: WIPEntry[]) => 
-        prev.filter(entry => entry.id !== entryToDelete.id)
-      );
+      useWIPStore.getState().deleteEntry(entryToDelete.id.toString());
 
       // Remove from daily logs
       useDailyLogs.getState().deleteLogs(entryToDelete);
@@ -577,7 +603,7 @@ export default function PageClient({ initialEntries }: PageClientProps) {
         const aggregated = await normalizeEntries(wipEntries);
         if (JSON.stringify(aggregated) !== JSON.stringify(wipEntries)) {
           console.log('✨ Found entries to merge, updating...');
-          setWipEntries(aggregated);
+          useWIPStore.getState().setEntries(aggregated);
         }
       } catch (error) {
         console.error("Error aggregating entries:", error);
@@ -630,6 +656,20 @@ export default function PageClient({ initialEntries }: PageClientProps) {
     
     return grouped;
   }, [wipEntries]);
+
+  useEffect(() => {
+    const initializeStores = async () => {
+      // Initialize Supabase stores
+      await Promise.all([
+        useDailyLogs.getState().loadLogs(),
+        useWIPStore.getState().loadEntries()
+      ]);
+      
+      console.log('Stores initialized with Supabase data');
+    };
+
+    initializeStores();
+  }, []);
 
   return (
     <div className="space-y-6">

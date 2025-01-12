@@ -313,122 +313,154 @@ export async function findRelatedEntries(entries: WIPEntry[]): Promise<WIPEntry[
   return groups;
 }
 
-export async function compareDescriptions(existingDesc: string, newDesc: string): Promise<{
-  shouldUpdate: boolean;
-  updatedDescription?: string;
-  explanation: string;
-}> {
-  const prompt = `
-  Compare these two work descriptions and determine if the new description adds significant information that should be incorporated.
-  
-  Existing description: "${existingDesc}"
-  New description: "${newDesc}"
-  
-  Consider:
-  1. Does the new description add meaningful new context or progress information?
-  2. Is it just restating the same work in different words?
-  3. Does it represent progress made after the original description?
-  
-  If an update is needed, provide a merged description that:
-  - Preserves important context from the original
-  - Adds the new information
-  - Maintains a clear narrative of the work progress
-  
-  Respond in JSON format:
-  {
-    "shouldUpdate": boolean,
-    "updatedDescription": string (only if shouldUpdate is true),
-    "explanation": "brief reason for the decision"
-  }
-  `;
-
+export async function compareDescriptions(desc1: string, desc2: string): Promise<boolean> {
   try {
-    const response = await analyze(prompt);
-    const result = JSON.parse(response);
-    return {
-      shouldUpdate: result.shouldUpdate,
-      updatedDescription: result.shouldUpdate ? result.updatedDescription : undefined,
-      explanation: result.explanation
-    };
+    // Clean and normalize descriptions
+    const cleanDesc1 = desc1.trim().toLowerCase();
+    const cleanDesc2 = desc2.trim().toLowerCase();
+    
+    // If descriptions are identical, return true immediately
+    if (cleanDesc1 === cleanDesc2) {
+      return true;
+    }
+
+    // Split into bullet points if they exist
+    const points1 = cleanDesc1.split(/[•\-\*]\s*/).map(p => p.trim()).filter(Boolean);
+    const points2 = cleanDesc2.split(/[•\-\*]\s*/).map(p => p.trim()).filter(Boolean);
+    
+    // If either description has no valid points, compare as whole strings
+    if (points1.length === 0 || points2.length === 0) {
+      const similarity = calculateStringSimilarity(cleanDesc1, cleanDesc2);
+      return similarity > 0.7; // 70% similarity threshold
+    }
+
+    // Compare each point
+    let matchCount = 0;
+    for (const point1 of points1) {
+      for (const point2 of points2) {
+        const similarity = calculateStringSimilarity(point1, point2);
+        if (similarity > 0.7) { // 70% similarity threshold
+          matchCount++;
+          break;
+        }
+      }
+    }
+
+    // Calculate overall similarity based on matching points
+    const overallSimilarity = matchCount / Math.min(points1.length, points2.length);
+    return overallSimilarity > 0.5; // 50% of points should match
   } catch (error) {
-    console.error("Error comparing descriptions:", error);
-    // If descriptions are identical, don't update
-    if (existingDesc === newDesc) {
-      return {
-        shouldUpdate: false,
-        explanation: "Identical descriptions"
-      };
-    }
-    // If new description is longer, use it
-    if (newDesc.length > existingDesc.length) {
-      return {
-        shouldUpdate: true,
-        updatedDescription: newDesc,
-        explanation: "Using longer description due to analysis error"
-      };
-    }
-    // Otherwise keep existing description
-    return {
-      shouldUpdate: false,
-      explanation: "Keeping existing description due to analysis error"
-    };
+    console.warn('⚠️ Error comparing descriptions:', error);
+    // Fallback to simple string comparison
+    return desc1.trim().toLowerCase() === desc2.trim().toLowerCase();
   }
 }
 
-export async function mergeEntryGroup(group: WIPEntry[]): Promise<WIPEntry> {
-  // Sort entries by timestamp
-  const sortedEntries = group.sort((a, b) => a.id - b.id);
+// Helper function to calculate string similarity using Levenshtein distance
+function calculateStringSimilarity(str1: string, str2: string): number {
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
   
-  // Calculate total time
-  const totalMinutes = group.reduce((sum, entry) => {
-    return sum + (entry.timeInMinutes || (entry.hours ? Math.round(entry.hours * 60) : 0));
-  }, 0);
+  if (longer.length === 0) {
+    return 1.0;
+  }
+  
+  const costs: number[] = [];
+  for (let i = 0; i <= shorter.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= longer.length; j++) {
+      if (i === 0) {
+        costs[j] = j;
+      } else if (j > 0) {
+        let newValue = costs[j - 1];
+        if (shorter[i - 1] !== longer[j - 1]) {
+          newValue = Math.min(
+            Math.min(newValue, lastValue),
+            costs[j]
+          ) + 1;
+        }
+        costs[j - 1] = lastValue;
+        lastValue = newValue;
+      }
+    }
+    if (i > 0) {
+      costs[longer.length] = lastValue;
+    }
+  }
+  
+  const distance = costs[longer.length];
+  return (longer.length - distance) / longer.length;
+}
 
-  // Use the most confident client if available
-  const knownClient = group.find(e => e.client !== "Unknown")?.client || "Unknown";
+export async function mergeEntryGroup(entries: WIPEntry[]): Promise<WIPEntry> {
+  if (entries.length === 0) {
+    throw new Error('Cannot merge empty group of entries');
+  }
 
-  // Use the most recent entry as base
-  const mostRecentEntry = sortedEntries[sortedEntries.length - 1];
+  if (entries.length === 1) {
+    return entries[0];
+  }
 
-  // Start with the earliest entry's description as base
-  let finalDescription = sortedEntries[0].description;
-  console.log(`📝 Starting with base description: "${finalDescription}"`);
+  // Sort entries by lastWorkedDate to get the most recent one as base
+  const sortedEntries = [...entries].sort((a, b) => 
+    (b.lastWorkedDate || 0) - (a.lastWorkedDate || 0)
+  );
 
-  // Compare with subsequent descriptions in chronological order
-  for (let i = 1; i < sortedEntries.length; i++) {
-    const entry = sortedEntries[i];
-    const comparison = await compareDescriptions(finalDescription, entry.description);
-    
-    if (comparison.shouldUpdate && comparison.updatedDescription) {
-      console.log(`📝 Updating description with entry ${entry.id}:`);
-      console.log(`Previous: "${finalDescription}"`);
-      console.log(`New: "${comparison.updatedDescription}"`);
-      console.log(`Reason: ${comparison.explanation}`);
-      finalDescription = comparison.updatedDescription;
-    } else {
-      console.log(`📝 Keeping existing description (${comparison.explanation})`);
+  const baseEntry = sortedEntries[0];
+  let mergedDescription = baseEntry.description || '';
+
+  // Merge descriptions from other entries if they add new information
+  for (const entry of sortedEntries.slice(1)) {
+    if (entry.description) {
+      const areSimilar = await compareDescriptions(mergedDescription, entry.description);
+      if (!areSimilar) {
+        // If descriptions are different, combine them with bullet points
+        mergedDescription = mergeMultipleDescriptions(mergedDescription, entry.description);
+      }
     }
   }
 
-  // Combine all associated daily IDs
-  const allAssociatedDailyIds = Array.from(new Set(
-    group.flatMap(entry => entry.associatedDailyIds || [])
-  )).sort((a, b) => a - b);
+  // Combine all time entries
+  const totalMinutes = entries.reduce((sum, entry) => sum + (entry.timeInMinutes || 0), 0);
+  const totalHours = totalMinutes / 60;
 
-  console.log(`🔗 Combined ${allAssociatedDailyIds.length} associated daily entries`);
+  // Combine all associated daily IDs
+  const associatedDailyIds = Array.from(new Set(
+    entries.flatMap(entry => entry.associatedDailyIds || [])
+  ));
+
+  // Combine all sub-entries
+  const subEntries = Array.from(new Set(
+    entries.flatMap(entry => entry.subEntries || [])
+  ));
 
   return {
-    id: mostRecentEntry.id,
-    client: knownClient,
-    project: mostRecentEntry.project,
-    partner: mostRecentEntry.partner,
+    ...baseEntry,
+    description: mergedDescription,
     timeInMinutes: totalMinutes,
-    hours: totalMinutes / 60,
-    description: finalDescription,
-    hourlyRate: mostRecentEntry.hourlyRate,
-    associatedDailyIds: allAssociatedDailyIds,
-    subEntries: mostRecentEntry.subEntries || [],
-    startDate: sortedEntries[0].startDate,
-    lastWorkedDate: mostRecentEntry.lastWorkedDate
+    hours: totalHours,
+    associatedDailyIds,
+    subEntries,
+    lastWorkedDate: Math.max(...entries.map(e => e.lastWorkedDate || 0))
   };
+}
+
+// Helper function to merge multiple descriptions
+function mergeMultipleDescriptions(...descriptions: string[]): string {
+  // Split descriptions into sentences
+  const allSentences = descriptions.flatMap(desc => 
+    desc.split(/[.!?]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      // Remove any existing bullets or dashes
+      .map(s => s.replace(/^[•\-]\s*/, ''))
+  );
+  
+  // Remove duplicates
+  const uniqueSentences = Array.from(new Set(allSentences));
+  
+  // Add bullet points and join
+  return uniqueSentences.length > 0 
+    ? uniqueSentences.map(s => `• ${s}`).join('\n')
+    : 'No description available';
 } 

@@ -3,8 +3,9 @@ export class ClientScreenRecorder {
   private isRecording: boolean = false;
   private screenshotBuffer: string[] = [];
   private screenshotCount: number = 0;
+  private processingBatch: boolean = false;
 
-  async startRecording(onScreenBatch: (screenshots: string[]) => void) {
+  async startRecording(onScreenBatch: (screenshots: string[]) => Promise<void>) {
     try {
       console.log('🎥 Requesting screen share...');
       this.mediaStream = await navigator.mediaDevices.getDisplayMedia({ 
@@ -19,6 +20,7 @@ export class ClientScreenRecorder {
       this.isRecording = true;
       this.screenshotBuffer = [];
       this.screenshotCount = 0;
+      this.processingBatch = false;
 
       const video = document.createElement('video');
       video.srcObject = this.mediaStream;
@@ -62,12 +64,22 @@ export class ClientScreenRecorder {
           // Update screenshot count in document title
           document.title = `📸 ${this.screenshotCount}/60 screenshots`;
 
-          // Process when we have 60 screenshots (1 minute)
-          if (this.screenshotCount >= 60) {
+          // Process when we have 60 screenshots (1 minute) and not already processing a batch
+          if (this.screenshotCount >= 60 && !this.processingBatch) {
             console.log('📦 Minute complete, processing screenshots...');
-            onScreenBatch([...this.screenshotBuffer]);
-            this.screenshotBuffer = [];
-            this.screenshotCount = 0;
+            this.processingBatch = true;
+
+            // Process the batch and handle any errors
+            const currentBatch = [...this.screenshotBuffer];
+            onScreenBatch(currentBatch).catch(error => {
+              console.error('❌ Failed to process screenshot batch:', error);
+              // Log the error but continue recording - don't retry this batch
+            }).finally(() => {
+              // Reset for next batch regardless of success/failure
+              this.screenshotBuffer = [];
+              this.screenshotCount = 0;
+              this.processingBatch = false;
+            });
           }
         } catch (error) {
           console.error('❌ Failed to capture screenshot:', error);

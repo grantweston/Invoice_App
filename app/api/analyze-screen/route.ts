@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const { screenshots, currentTasks } = await request.json();
+    const { screenshots, currentTasks = [] } = await request.json();
     
     if (!Array.isArray(screenshots) || screenshots.length === 0) {
       throw new Error('No screenshots received');
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     5. What specific activities can be observed?
     
     Current known tasks:
-    ${currentTasks.map(task => `- ${task.client} / ${task.project}: ${task.description}`).join('\n')}
+    ${currentTasks?.map(task => `- ${task.client} / ${task.project}: ${task.description}`).join('\n') || 'No current tasks'}
     
     Respond in JSON format:
     {
@@ -48,8 +48,8 @@ export async function POST(request: Request) {
       "confidence_score": 0.9
     }
     `;
-
-    const analysis = await analyzeScreenshots(screenshots);
+    
+    const analysis = await analyzeScreenshots(screenshots, currentTasks);
     
     return NextResponse.json(analysis);
   } catch (error: any) {

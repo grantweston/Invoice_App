@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useWIPStore } from '@/src/store/wipStore';
+import { useWIPStore } from '@/src/store/supabaseStores';
 import DocGenerator from '../../components/DocGenerator';
 import { WIPEntry } from '@/src/types';
 

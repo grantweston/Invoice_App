@@ -4,8 +4,6 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     // Disable automatic static optimization
-    isrMemoryCacheSize: 0,
-    // Explicitly configure tracing
     outputFileTracingRoot: process.cwd(),
     outputFileTracingExcludes: {
       '*': [

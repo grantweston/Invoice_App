@@ -7,16 +7,16 @@ export interface SubEntry {
 }
 
 export interface WIPEntry {
-  id: number;
+  id?: number;
   client: string;
   project: string;
-  hours?: number;
-  timeInMinutes?: number;
-  description: string;
+  timeInMinutes: number;
+  hours: number;
   partner: string;
   hourlyRate: number;
+  description: string;
   associatedDailyIds: number[];
-  subEntries: SubEntry[]; // Array of distinct tasks within this project
-  startDate: number; // Timestamp of first work
-  lastWorkedDate: number; // Timestamp of most recent work
+  subEntries: any[];
+  startDate: number;
+  lastWorkedDate: number;
 } 
