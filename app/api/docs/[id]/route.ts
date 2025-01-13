@@ -44,20 +44,49 @@ export async function POST(
     const { id } = params;
     const { updates } = await request.json();
     console.log('✏️ Updating document:', id);
-    console.log('Updates to apply:', updates);
+    console.log('📦 Updates payload:', JSON.stringify(updates, null, 2));
+
+    if (!Array.isArray(updates)) {
+      console.error('❌ Invalid updates format - expected array');
+      return NextResponse.json(
+        { error: 'Updates must be an array' },
+        { status: 400 }
+      );
+    }
+
+    // Validate each update
+    for (const update of updates) {
+      console.log('🔍 Validating update:', update);
+      if (update.replaceAllText) {
+        console.log('📝 Found replaceAllText operation');
+        if (!update.replaceAllText.containsText?.text) {
+          console.error('❌ Invalid containsText format:', update.replaceAllText.containsText);
+          return NextResponse.json(
+            { error: 'Invalid containsText format' },
+            { status: 400 }
+          );
+        }
+      }
+    }
 
     // Apply the updates
+    console.log('🚀 Sending updates to Google Docs API...');
     const response = await docs.documents.batchUpdate({
       documentId: id,
-      requestBody: {
-        requests: updates,
-      },
+      requestBody: { requests: updates }
     });
-
     console.log('✅ Document updated successfully');
-    return NextResponse.json(response.data);
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('❌ Error updating document:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+    }
     return NextResponse.json(
       { error: 'Failed to update document' },
       { status: 500 }

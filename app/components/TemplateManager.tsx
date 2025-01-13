@@ -161,13 +161,11 @@ export default function TemplateManager() {
   };
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow">
-      <h2 className="text-lg font-semibold mb-4">Invoice Template</h2>
-      
+    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-700">
       <div className="space-y-6">
         {/* File Upload */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
             Upload New Template
           </label>
           <div className="flex items-center space-x-2">
@@ -175,18 +173,18 @@ export default function TemplateManager() {
               type="file"
               accept=".doc,.docx,.pdf"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-gray-500
+              className="block w-full text-sm text-gray-500 dark:text-gray-400
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-full file:border-0
                 file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100"
+                file:bg-blue-50 dark:file:bg-blue-900 file:text-blue-700 dark:file:text-blue-200
+                hover:file:bg-blue-100 dark:hover:file:bg-blue-800"
             />
             <button
               onClick={handleUpload}
               disabled={!selectedFile || isUploading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg
-                disabled:bg-gray-400 disabled:cursor-not-allowed
+                disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed
                 hover:bg-blue-700 transition-colors"
             >
               {isUploading ? 'Uploading...' : 'Upload'}
@@ -196,9 +194,9 @@ export default function TemplateManager() {
 
         {/* Templates List */}
         <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Available Templates</h3>
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Available Templates</h3>
           {isLoading ? (
-            <div className="text-sm text-gray-500 animate-pulse">
+            <div className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
               Loading templates...
             </div>
           ) : templates.length > 0 ? (
@@ -206,11 +204,11 @@ export default function TemplateManager() {
               {templates.map((template) => (
                 <div
                   key={template.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
                 >
                   <div>
-                    <div className="font-medium">{template.name}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium dark:text-gray-200">{template.name}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       {template.googleDocId ? 'Converted to Google Doc' : 'Original Document'}
                     </div>
                   </div>
@@ -219,30 +217,30 @@ export default function TemplateManager() {
                       href={template.webViewLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                     >
                       View
                     </a>
                     {template.id !== defaultTemplateId && (
                       <button
                         onClick={() => setAsDefault(template.id)}
-                        className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded-full
-                          hover:bg-blue-200 transition-colors"
+                        className="text-sm px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-full
+                          hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
                       >
                         Set as Default
                       </button>
                     )}
                     {template.id === defaultTemplateId && (
-                      <span className="text-sm px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                      <span className="text-sm px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-full">
                         Default Template
                       </span>
                     )}
                     <button
                       onClick={() => handleDelete(template.id)}
                       disabled={isDeleting === template.id}
-                      className="p-1 text-red-600 hover:text-red-800 disabled:text-gray-400
-                        disabled:cursor-not-allowed transition-colors rounded-full
-                        hover:bg-red-50"
+                      className="p-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 disabled:text-gray-400
+                        dark:disabled:text-gray-600 disabled:cursor-not-allowed transition-colors rounded-full
+                        hover:bg-red-50 dark:hover:bg-red-900"
                       title="Delete template"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -252,7 +250,7 @@ export default function TemplateManager() {
               ))}
             </div>
           ) : (
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               No templates available. Upload one to get started.
             </div>
           )}
