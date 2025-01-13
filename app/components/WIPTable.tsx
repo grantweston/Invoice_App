@@ -417,6 +417,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
       <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
         <thead className="bg-gray-50 dark:bg-dark-bg-lighter">
           <tr>
+            {isEditable && <th scope="col" className="w-[40px] px-6 py-3"></th>}
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Client</th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Project</th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Partner</th>
@@ -437,6 +438,20 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   'bg-white dark:bg-[#121212] hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
                 }`}
             >
+              {isEditable && (
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <button
+                    onClick={() => onDelete(entry)}
+                    className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 
+                      hover:bg-red-200 dark:hover:bg-red-900/50 hover:text-red-800 dark:hover:text-red-300 transition-all duration-150"
+                    title="Delete entry"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </td>
+              )}
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{entry.client}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{entry.project}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{entry.partner || ''}</td>
@@ -455,7 +470,11 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${((entry.timeInMinutes / 60) * (entry.hourlyRate || 0)).toFixed(2)}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{formatTime(entry.lastWorkedDate)}</td>
               <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-xl">
-                {entry.description}
+                {entry.description.split('\n').map((line, i) => (
+                  <div key={i} className="whitespace-pre-wrap">
+                    {line.startsWith('•') ? line.replace('•', '\u2022 ') : line}
+                  </div>
+                ))}
               </td>
             </tr>
           ))}

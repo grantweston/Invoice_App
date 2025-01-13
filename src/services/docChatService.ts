@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { clientDocsService } from "./clientDocsService";
 import { useWIPStore, useDailyLogs } from "@/src/store/supabaseStores";
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
 const SYSTEM_PROMPT = `You are an expert billing assistant with deep knowledge of invoice structures and document editing. Your task is to help users edit and refine their invoice documents through natural conversation.

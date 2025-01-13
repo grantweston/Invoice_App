@@ -162,7 +162,7 @@ export default function TemplateManager() {
 
   return (
     <div className="p-4 bg-white rounded-lg shadow">
-      <h2 className="text-lg font-semibold mb-4">Invoice Template</h2>
+      <h2 className="text-lg font-semibold mb-4 text-gray-900">Invoice Template</h2>
       
       <div className="space-y-6">
         {/* File Upload */}
@@ -209,8 +209,8 @@ export default function TemplateManager() {
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   <div>
-                    <div className="font-medium">{template.name}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900">{template.name}</div>
+                    <div className="text-sm text-gray-600">
                       {template.googleDocId ? 'Converted to Google Doc' : 'Original Document'}
                     </div>
                   </div>

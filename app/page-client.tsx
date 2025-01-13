@@ -562,13 +562,19 @@ export default function PageClient({ initialEntries }: PageClientProps) {
   };
 
   // Handle entry deletion
-  const handleEntryDelete = (entryToDelete: WIPEntry) => {
+  const handleEntryDelete = async (entryToDelete: WIPEntry) => {
     if (window.confirm('Are you sure you want to delete this entry?')) {
-      // Remove from WIP entries
-      useWIPStore.getState().deleteEntry(entryToDelete.id.toString());
+      try {
+        // Remove from WIP entries
+        await useWIPStore.getState().deleteEntry(entryToDelete.id.toString());
+        console.log('✅ Deleted from WIP entries');
 
-      // Remove from daily logs
-      useDailyLogs.getState().deleteLogs(entryToDelete);
+        // Remove from daily logs
+        await useDailyLogs.getState().deleteLogs(entryToDelete);
+        console.log('✅ Deleted from daily logs');
+      } catch (error) {
+        console.error('❌ Failed to delete entry:', error);
+      }
     }
   };
 
