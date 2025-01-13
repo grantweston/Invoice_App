@@ -5,12 +5,15 @@ import Link from "next/link";
 import ThemeToggle from "./ThemeToggle";
 import { X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
+import { demoDataService } from '@/src/services/demoDataService';
 
 export default function NavBar() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [userName, setUserName] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     if (isSettingsOpen) {
@@ -34,6 +37,18 @@ export default function NavBar() {
   };
 
   const isActivePath = (path: string) => pathname === path;
+
+  const handleStartDemo = async () => {
+    if (window.confirm('This will clear all existing data. Are you sure you want to load demo data?')) {
+      const success = await demoDataService.loadDemoData();
+      if (success) {
+        alert('Demo data loaded successfully!');
+        window.location.reload();
+      } else {
+        alert('Failed to load demo data. Please try again.');
+      }
+    }
+  };
 
   return (
     <>
@@ -86,6 +101,13 @@ export default function NavBar() {
           </div>
 
           <div className="flex items-center space-x-4">
+            <button
+              onClick={handleStartDemo}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-200 
+                hover:scale-105 border border-white/10 hover:border-white/20 shadow-lg font-medium"
+            >
+              Start Demo
+            </button>
             <ThemeToggle />
             <button 
               onClick={() => setIsSettingsOpen(true)}
