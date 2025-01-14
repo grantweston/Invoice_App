@@ -1098,12 +1098,11 @@ const buildStructuralElements = (content: any[]) => {
     }
 
     if (item.table) {
-      const safeRows = Array.isArray(item.table.rows) ? item.table.rows : [];
       return {
         table: {
-          rows: safeRows.map((row) => ({
+          rows: item.table.rows?.map(row => ({
             rowStyle: row.rowStyle,
-            tableCells: row.tableCells?.map((cell) => ({
+            tableCells: row.tableCells?.map(cell => ({
               content: buildStructuralElements(cell.content),
               tableCellStyle: cell.tableCellStyle
             }))
@@ -1202,7 +1201,7 @@ export const docChatService = {
     history: ChatMessage[]
   ): Promise<{ response: string; documentUpdated: boolean }> {
     try {
-      // Get current document content using clientDocsService
+      // Get current document content
       const doc = await clientDocsService.getDocument(documentId);
       
       // Get WIP entries and daily logs
@@ -1211,10 +1210,6 @@ export const docChatService = {
       
       // Build complete document structure
       const documentStructure = buildCompleteDocumentStructure(doc);
-      
-      const docLength = documentStructure.body?.content?.reduce((max: number, el: any) => {
-        return typeof el.endIndex === 'number' && el.endIndex > max ? el.endIndex : max;
-      }, 0);
       
       const prompt = `${SYSTEM_PROMPT}
 
@@ -1339,7 +1334,7 @@ Lists and Ranges:
           
           // Handle tab operations
           if (req.createDocumentTab || req.deleteDocumentTab) {
-            return handleTabOperation(req);
+            return handleDocumentTabOperation(req);
           }
           
           // Handle bookmark operations
@@ -1393,66 +1388,68 @@ Lists and Ranges:
             console.log('❌ Blocked dangerous global replacement pattern:', req.replaceAllText?.containsText?.text);
             return false;
           }
-          
-          // Handle replaceAllText
+
+          // Validate replaceAllText
           if (req.replaceAllText) {
             const searchText = req.replaceAllText.containsText?.text;
-            const textExists = documentStructure.body.content.some(element =>
-              element.paragraph?.elements?.some(el => el.textRun?.content?.includes(searchText))
-            );
-            const isValid =
+            // Minimum length to prevent too broad replacements
+            if (searchText && searchText.length < 3) {
+              console.log('❌ Search text too short:', searchText);
+              return false;
+            }
+            
+            // Check if text exists in any paragraph content
+            const textExists = documentStructure.body.content.some(element => {
+              if (element.paragraph?.elements) {
+                return element.paragraph.elements.some(el => 
+                  el.textRun?.content?.includes(searchText)
+                );
+              }
+              return false;
+            });
+            
+            const isValid = (
               searchText &&
-              searchText.length >= 3 &&
+              typeof searchText === 'string' &&
               req.replaceAllText.replaceText &&
-              textExists;
+              typeof req.replaceAllText.replaceText === 'string' &&
+              textExists
+            );
             if (!isValid) {
-              console.log(!textExists ? '❌ Text not found in document:' : '❌ Invalid replaceAllText request:', searchText);
+              if (!textExists) {
+                console.log('❌ Text not found in document:', searchText);
+              } else {
+                console.log('❌ Invalid replaceAllText request:', req);
+              }
             }
             return isValid;
           }
 
-          // Handle insertText
+          // Validate insertText
           if (req.insertText) {
+            // Don't allow insertions at the very beginning of the document
             if (req.insertText.location?.index <= 1) {
               console.log('❌ Prevented insertion at document start');
               return false;
             }
-            const isValid =
+
+            const isValid = (
               typeof req.insertText.location?.index === 'number' &&
               req.insertText.text &&
-              !req.insertText.text.includes('expert billing assistant') &&
-              req.insertText.text.trim().length > 0;
+              typeof req.insertText.text === 'string' &&
+              !req.insertText.text.includes('expert billing assistant') && // Prevent system prompt insertion
+              req.insertText.text.trim().length > 0 // Prevent empty insertions
+            );
             if (!isValid) {
-              console.log('❌ Invalid insertText request:', req.insertText);
+              if (req.insertText.text?.includes('expert billing assistant')) {
+                console.log('❌ Prevented system prompt insertion');
+              } else if (!req.insertText.text?.trim()) {
+                console.log('❌ Prevented empty text insertion');
+              } else {
+                console.log('❌ Invalid insertText request:', req);
+              }
             }
             return isValid;
-          }
-
-          // Check for out-of-bounds ranges on textStyle/paragraphStyle
-          if (req.updateTextStyle) {
-            const style = req.updateTextStyle.textStyle;
-            if (req.updateTextStyle.range?.endIndex >= docLength) {
-              // Clamp endIndex if it’s too big
-              req.updateTextStyle.range.endIndex = Math.min(docLength - 1, req.updateTextStyle.range.endIndex);
-            }
-            if (!validateStyleProperties({ textStyle: style })) {
-              console.log('❌ Invalid text style properties:', req);
-              return false;
-            }
-            return true;
-          }
-
-          if (req.updateParagraphStyle) {
-            const style = req.updateParagraphStyle.paragraphStyle;
-            if (req.updateParagraphStyle.range?.endIndex >= docLength) {
-              // Clamp endIndex if it’s too big
-              req.updateParagraphStyle.range.endIndex = Math.min(docLength - 1, req.updateParagraphStyle.range.endIndex);
-            }
-            if (!validateStyleProperties({ paragraphStyle: style })) {
-              console.log('❌ Invalid paragraph style properties:', req);
-              return false;
-            }
-            return true;
           }
 
           console.log('❌ Unknown request type:', req);
@@ -1602,23 +1599,11 @@ const handleListOperation = (req: any, doc: any) => {
 };
 
 const handleStyleOperation = (req: any, doc: any) => {
-  // Extract the actual style objects from updateTextStyle / updateParagraphStyle
-  let textStyle, paragraphStyle;
-
-  if (req.updateTextStyle?.textStyle) {
-    textStyle = req.updateTextStyle.textStyle;
-  }
-  if (req.updateParagraphStyle?.paragraphStyle) {
-    paragraphStyle = req.updateParagraphStyle.paragraphStyle;
-  }
-
-  // Now pass those extracted objects into your validator
-  if (!validateStyleProperties({ textStyle, paragraphStyle })) {
+  // Validate style properties
+  if (!validateStyleProperties(req)) {
     console.log('❌ Invalid style properties:', req);
     return null;
   }
-
-  // If all is valid, return the request unchanged
   return req;
 };
 
@@ -1685,21 +1670,12 @@ const handleAutoTextOperation = (req: any, doc: any) => {
   return req;
 };
 
-const handleTabOperation = (req: any) => {
+const handleDocumentTabOperation = (req: any) => {
   // Validate tab properties
   if (!validateTabProperties(req.tabProperties)) {
     console.log('❌ Invalid tab properties:', req.tabProperties);
     return null;
   }
-
-  if (req.deleteTabStop) {
-    const { range, tabStopIndex } = req.deleteTabStop;
-    if (!range || typeof tabStopIndex !== 'number') {
-      console.log('❌ Invalid deleteTabStop request:', req.deleteTabStop);
-      return null;
-    }
-  }
-
   return req;
 };
 
@@ -1977,35 +1953,21 @@ const validateTabProperties = (props: any): boolean => {
   return props && props.tabId && props.tabName;
 };
 
-// If you want to avoid picking specific indexes entirely, you can fetch the doc contents first, 
-// compute positions dynamically, and then build your request. Something like this:
+function handleTabOperation(req: any) {
+  // existing checks...
 
-async function getGoogleDocLength(doc: any): Promise<number> {
-  const content = doc.body?.content || [];
-  if (!content.length) return 1;
-  const lastElement = content[content.length - 1];
-  return lastElement.endIndex ?? 1;
+  if (req.deleteTabStop) {
+    const { range, tabStopIndex } = req.deleteTabStop;
+    // Validate range and tabStopIndex
+    if (!range || typeof tabStopIndex !== 'number') {
+      console.log('❌ Invalid deleteTabStop request:', req.deleteTabStop);
+      return null;
+    }
+    // Additional logic/validations here
+    return req;
+  }
+
+  return req;
 }
 
-export async function buildRequests(doc: any) {
-  const docLength = await getGoogleDocLength(doc);
-
-  const baseIndex = docLength;
-  const offsetOne = 25;
-  const offsetTwo = 10;
-  const computedOne = baseIndex + offsetOne;
-  const computedTwo = computedOne + offsetTwo;
-
-  return [
-    {
-      insertSectionBreak: {
-        location: {
-          index: baseIndex,
-          segmentId: ""
-        },
-        sectionType: "NEXT_PAGE"
-      }
-    },
-    // ... rest of the requests ...
-  ];
-} 
+// ... rest of the file remains unchanged ... 
