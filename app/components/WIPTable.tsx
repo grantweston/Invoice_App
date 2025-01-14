@@ -41,8 +41,8 @@ const formatTime = (hours: number | string): string => {
 };
 
 // Format timestamp
-const formatTimestamp = (id: number): string => {
-  const date = new Date(id);
+const formatTimestamp = (timestamp: number): string => {
+  const date = new Date(timestamp);
   return date.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -569,7 +569,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   </div>
                 ) : (
                   <div className="py-1 px-2 text-xs">
-                    {showTimestamp ? formatTimestamp(entry.id) : formatTime(getTimeInMinutes(entry) / 60)}
+                    {showTimestamp ? formatTimestamp(entry.startDate) : formatTime(getTimeInMinutes(entry) / 60)}
                   </div>
                 )}
               </td>

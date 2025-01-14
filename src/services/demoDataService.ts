@@ -5,8 +5,14 @@ import { useWIPStore } from "@/src/store/wipStore";
 
 // Helper to generate timestamps within the last hour
 const getRecentTimestamp = (minutesAgo: number) => {
-  const now = Date.now();
-  return now - (minutesAgo * 60 * 1000);
+  const now = new Date();
+  // Round down to nearest minute
+  now.setSeconds(0);
+  now.setMilliseconds(0);
+  // Create a new date object for the offset time
+  const timestamp = new Date(now);
+  timestamp.setMinutes(now.getMinutes() - minutesAgo);
+  return timestamp.getTime();
 };
 
 const TAX_PREP_DESCRIPTIONS = [
@@ -58,9 +64,19 @@ export const demoDataService = {
       // Add WIP entries
       await useWIPStore.getState().setEntries([taxPrepWIP, taxResearchWIP]);
 
-      // Create daily entries
+      // Create an array of timestamps, one minute apart
+      const now = new Date();
+      now.setSeconds(0);
+      now.setMilliseconds(0);
+      const timestamps = Array.from({ length: 10 }, (_, i) => {
+        const timestamp = new Date(now);
+        timestamp.setMinutes(now.getMinutes() - (9 - i)); // Start 9 minutes ago
+        return timestamp.getTime();
+      });
+
+      // Create daily entries with sequential timestamps
       const dailyEntries: DailyWIPEntry[] = [
-        // Tax Prep Entries
+        // Tax Prep Entries - first 3 timestamps
         ...TAX_PREP_DESCRIPTIONS.map((desc, i) => ({
           id: Date.now() + i + 2,
           client: taxPrepWIP.client,
@@ -70,12 +86,12 @@ export const demoDataService = {
           partner: taxPrepWIP.partner,
           hourlyRate: taxPrepWIP.hourlyRate,
           description: desc.substring(2), // Remove bullet point
-          startDate: getRecentTimestamp(60 - i),
-          lastWorkedDate: getRecentTimestamp(60 - i),
+          startDate: timestamps[i],
+          lastWorkedDate: timestamps[i],
           associatedDailyIds: [],
           subEntries: []
         })),
-        // Tax Research Entries
+        // Tax Research Entries - remaining timestamps
         ...TAX_RESEARCH_DESCRIPTIONS.map((desc, i) => ({
           id: Date.now() + i + 5,
           client: taxResearchWIP.client,
@@ -85,12 +101,15 @@ export const demoDataService = {
           partner: taxResearchWIP.partner,
           hourlyRate: taxResearchWIP.hourlyRate,
           description: desc.substring(2), // Remove bullet point
-          startDate: getRecentTimestamp(30 - i),
-          lastWorkedDate: getRecentTimestamp(30 - i),
+          startDate: timestamps[i + 3], // Start after Tax Prep entries
+          lastWorkedDate: timestamps[i + 3],
           associatedDailyIds: [],
           subEntries: []
         }))
       ];
+
+      // Sort entries by timestamp in descending order (newest first)
+      dailyEntries.sort((a, b) => b.startDate - a.startDate);
 
       // Add daily entries
       for (const entry of dailyEntries) {
@@ -98,6 +117,7 @@ export const demoDataService = {
       }
 
       console.log('✅ Demo data loaded successfully');
+      console.log('Created entries with timestamps:', dailyEntries.map(e => new Date(e.startDate).toLocaleTimeString()));
       return true;
     } catch (error) {
       console.error('❌ Failed to load demo data:', error);
