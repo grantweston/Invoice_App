@@ -79,8 +79,8 @@ export default function GenerateInvoicePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Generate New Invoice</h1>
-          <p className="text-sm text-gray-600">Select a client to generate an invoice</p>
+          <h1 className="text-xl font-bold">Generate New Invoice</h1>
+          <p className="text-xs text-gray-600">Select a client to generate an invoice</p>
         </div>
       </div>
 
@@ -89,8 +89,8 @@ export default function GenerateInvoicePage() {
           <div key={clientName} className="bg-white dark:bg-dark-card p-6 rounded-lg border border-gray-200 dark:border-dark-border">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-semibold">{clientName}</h2>
-                <p className="text-sm text-gray-500">
+                <h2 className="text-base font-semibold">{clientName}</h2>
+                <p className="text-xs text-gray-500">
                   {Object.keys(data.projects).length} projects • 
                   {formatTime(data.totalHours)} • 
                   {formatCurrency(data.totalAmount)}
@@ -105,8 +105,8 @@ export default function GenerateInvoicePage() {
             <div className="mt-4 space-y-3">
               {Object.entries(data.projects).map(([projectName, projectData]) => (
                 <div key={projectName} className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
-                  <h3 className="font-medium">{projectName}</h3>
-                  <p className="text-sm text-gray-500">
+                  <h3 className="text-sm font-medium">{projectName}</h3>
+                  <p className="text-xs text-gray-500">
                     {formatTime(projectData.totalHours)} • 
                     {formatCurrency(projectData.totalAmount)}
                   </p>
@@ -117,7 +117,7 @@ export default function GenerateInvoicePage() {
         ))}
 
         {Object.keys(clientProjects).length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-xs text-gray-500">
             No WIP entries found. Start tracking work to generate invoices.
           </div>
         )}

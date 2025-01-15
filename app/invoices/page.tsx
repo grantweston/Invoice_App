@@ -52,12 +52,15 @@ export default function InvoicesPage() {
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Invoices</h1>
-          <p className="text-sm text-gray-400">Generate and manage client invoices</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Invoices</h1>
+          <p className="text-xs text-gray-600 dark:text-gray-400">Generate and manage client invoices</p>
         </div>
         <button
           onClick={() => router.push('/invoices/generate')}
-          className="bg-gradient-to-r from-blue-500/30 to-blue-600/30 hover:from-blue-500/40 hover:to-blue-600/40 text-blue-300 border border-blue-500/30 hover:border-blue-500/40
+          className="bg-blue-100 dark:bg-blue-500/40
+            hover:bg-blue-200 dark:hover:bg-blue-500/50 
+            text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-500/40 
+            hover:border-blue-400 dark:hover:border-blue-500/50
             px-4 py-1.5 rounded text-xs h-[38px] flex items-center gap-1 transition-all duration-150 hover:scale-105 shadow-lg"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,15 +74,16 @@ export default function InvoicesPage() {
         {invoices.map((invoice) => (
           <div 
             key={invoice.id} 
-            className="bg-[#1f2937] rounded-xl border border-[#374151] shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden group"
+            className="bg-white dark:bg-[#1f2937] rounded-xl border border-gray-200 dark:border-[#374151] 
+              shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden group"
           >
             <div className="p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <h2 className="text-xl font-semibold text-white group-hover:text-blue-400 transition-colors duration-200">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
                     {invoice.client}
                   </h2>
-                  <p className="text-sm text-gray-400 flex items-center gap-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
                     <span className="inline-flex items-center gap-1">
                       <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -99,7 +103,10 @@ export default function InvoicesPage() {
                     href={invoice.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 bg-[#374151] hover:bg-[#4b5563] text-gray-200 rounded-lg flex items-center gap-2 transition-all duration-200 text-sm font-medium border border-[#4b5563] hover:border-[#6b7280]"
+                    className="px-4 py-2 bg-gray-100 dark:bg-[#374151] hover:bg-gray-200 dark:hover:bg-[#4b5563] 
+                      text-gray-800 dark:text-gray-100 rounded-lg flex items-center gap-2 transition-all duration-200 
+                      text-sm font-medium border border-gray-300 dark:border-[#4b5563] 
+                      hover:border-gray-400 dark:hover:border-[#6b7280]"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -108,7 +115,11 @@ export default function InvoicesPage() {
                   </a>
                   <button
                     onClick={() => router.push(`/invoices/edit/${invoice.id}`)}
-                    className="px-4 py-2 bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/30 text-emerald-400 rounded-lg flex items-center gap-2 transition-all duration-200 text-sm font-medium border border-emerald-500/20 hover:border-emerald-500/30"
+                    className="px-4 py-2 bg-emerald-100 dark:bg-emerald-500/30
+                      hover:bg-emerald-200 dark:hover:bg-emerald-500/40 
+                      text-emerald-700 dark:text-emerald-300 rounded-lg flex items-center gap-2 transition-all duration-200 
+                      text-sm font-medium border border-emerald-300 dark:border-emerald-500/30 
+                      hover:border-emerald-400 dark:hover:border-emerald-500/40"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -117,7 +128,11 @@ export default function InvoicesPage() {
                   </button>
                   <button
                     onClick={() => handleDelete(invoice)}
-                    className="px-4 py-2 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 text-red-400 rounded-lg flex items-center gap-2 transition-all duration-200 text-sm font-medium border border-red-500/20 hover:border-red-500/30"
+                    className="px-4 py-2 bg-red-100 dark:bg-red-500/30
+                      hover:bg-red-200 dark:hover:bg-red-500/40 
+                      text-red-700 dark:text-red-300 rounded-lg flex items-center gap-2 transition-all duration-200 
+                      text-sm font-medium border border-red-300 dark:border-red-500/30 
+                      hover:border-red-400 dark:hover:border-red-500/40"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -131,12 +146,13 @@ export default function InvoicesPage() {
         ))}
 
         {invoices.length === 0 && (
-          <div className="text-center py-16 rounded-xl border border-[#374151] bg-[#1f2937]">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center py-16 rounded-xl border border-gray-200 dark:border-[#374151] 
+            bg-white dark:bg-[#1f2937]">
+            <svg className="w-16 h-16 mx-auto mb-4 text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p className="text-gray-400 mb-2">No invoices generated yet</p>
-            <p className="text-sm text-gray-500">Click "Generate New Invoice" to create one</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-2 text-xs">No invoices generated yet</p>
+            <p className="text-xs text-gray-500">Click "Generate New Invoice" to create one</p>
           </div>
         )}
       </div>

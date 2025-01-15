@@ -28,12 +28,12 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className={`relative p-2 rounded-lg transition-all duration-300 ease-spring
+      className={`relative py-[6px] px-4 rounded-md transition-all duration-300 ease-spring
         ${darkMode 
           ? 'bg-gray-800 text-yellow-300 hover:bg-gray-700' 
-          : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+          : 'bg-gray-600/90 text-yellow-500 hover:bg-gray-500/90'
         }
-        hover:scale-110 shadow-lg border border-white/10
+        hover:scale-105 shadow-sm
         group overflow-hidden`}
       aria-label="Toggle theme"
     >
@@ -48,7 +48,7 @@ export default function ThemeToggle() {
       <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300
         ${darkMode 
           ? 'bg-gradient-to-tr from-yellow-300/10 to-transparent' 
-          : 'bg-gradient-to-tr from-blue-400/10 to-transparent'
+          : 'bg-gradient-to-tr from-gray-700/10 to-transparent'
         }`}
       />
     </button>

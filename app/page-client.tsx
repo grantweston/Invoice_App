@@ -15,9 +15,9 @@ import {
   shouldEntriesBeMerged,
   compareDescriptions 
 } from '@/src/backend/services/intelligentAggregationService';
-import WorkSessionButton from './components/WorkSessionButton';
 import { useRecordingState } from '@/src/store/recordingState';
 import { exportToExcel } from '@/src/services/excelExportService';
+import { FileDown } from 'lucide-react';
 
 const recorder = new ClientScreenRecorder();
 
@@ -631,21 +631,31 @@ export default function PageClient({ initialEntries }: PageClientProps) {
     return grouped;
   }, [wipEntries]);
 
+  const handleExportToExcel = () => {
+    exportToExcel(wipEntries, useDailyLogs.getState().logs);
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
-          Work In Progress (WIP) Dashboard
-        </h1>
-        <div className="flex items-center gap-2">
-          <WorkSessionButton
-            onStart={startWorkSession}
-            onEnd={endWorkSession}
-          />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-300">Work In Progress Report</h1>
+          <p className="text-sm text-gray-600">
+            Showing aggregated timesheet entries by project
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={clearAllData}
+            className="bg-gradient-to-r from-yellow-500/60 to-yellow-600/60 hover:from-yellow-500/70 hover:to-yellow-600/70 text-yellow-900 dark:text-yellow-300 border border-yellow-500/60 hover:border-yellow-500/70
+              px-4 py-1.5 rounded text-xs h-[38px] transition-all duration-150 hover:scale-105 shadow-lg"
+          >
+            Clear All Data
+          </button>
           <button
             onClick={() => exportToExcel(wipEntries, useDailyLogs.getState().logs)}
-            className="bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/30 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/30
-              px-3 py-1.5 rounded text-xs h-[38px] flex items-center gap-1 transition-all duration-150 hover:scale-105 shadow-lg"
+            className="bg-gradient-to-r from-emerald-500/60 to-emerald-600/60 hover:from-emerald-500/70 hover:to-emerald-600/70 text-emerald-900 dark:text-emerald-300 border border-emerald-500/60 hover:border-emerald-500/70
+              px-4 py-1.5 rounded text-xs h-[38px] flex items-center gap-1 transition-all duration-150 hover:scale-105 shadow-lg"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

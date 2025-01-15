@@ -73,7 +73,7 @@ export default function DailyReport() {
 
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <div className="pt-4 px-6 pb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-xl font-bold">Daily Time Sheet</h1>
@@ -84,7 +84,7 @@ export default function DailyReport() {
           <div className="flex gap-2">
             <button
               type="button"
-              className="bg-gradient-to-r from-yellow-500/30 to-yellow-600/30 hover:from-yellow-500/40 hover:to-yellow-600/40 text-yellow-300 border border-yellow-500/30 hover:border-yellow-500/40
+              className="bg-gradient-to-r from-yellow-500/60 to-yellow-600/60 hover:from-yellow-500/70 hover:to-yellow-600/70 text-yellow-900 dark:text-yellow-300 border border-yellow-500/60 hover:border-yellow-500/70
                 px-4 py-1.5 rounded text-xs h-[38px] transition-all duration-150 hover:scale-105 shadow-lg"
               onClick={clearAllData}
             >
@@ -92,7 +92,7 @@ export default function DailyReport() {
             </button>
             <button
               onClick={() => exportToExcel([], entries)}
-              className="bg-gradient-to-r from-emerald-500/30 to-emerald-600/30 hover:from-emerald-500/40 hover:to-emerald-600/40 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/40
+              className="bg-gradient-to-r from-emerald-500/60 to-emerald-600/60 hover:from-emerald-500/70 hover:to-emerald-600/70 text-emerald-900 dark:text-emerald-300 border border-emerald-500/60 hover:border-emerald-500/70
                 px-4 py-1.5 rounded text-xs h-[38px] flex items-center gap-1 transition-all duration-150 hover:scale-105 shadow-lg"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

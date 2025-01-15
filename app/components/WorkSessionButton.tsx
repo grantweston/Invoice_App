@@ -32,7 +32,7 @@ export default function WorkSessionButton({ onStart, onEnd }: WorkSessionButtonP
     <button
       onClick={handleClick}
       className={`
-        relative px-6 h-[38px] rounded-lg font-medium text-white text-xs
+        relative px-4 py-[6px] rounded-lg font-medium text-xs
         transition-all duration-500 ease-in-out
         flex items-center gap-2 group shadow-lg
         ${isRecording 
@@ -45,6 +45,15 @@ export default function WorkSessionButton({ onStart, onEnd }: WorkSessionButtonP
       `}
       disabled={isPending}
     >
+      {isRecording && (
+        <div className="absolute -left-4 top-1/2 -translate-y-1/2 flex items-center">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400/75 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-400"></span>
+          </span>
+        </div>
+      )}
+
       {/* Icon container */}
       <div className="relative w-5 h-5">
         <div className={`
@@ -91,16 +100,6 @@ export default function WorkSessionButton({ onStart, onEnd }: WorkSessionButtonP
 
       {/* Hover glow effect */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg bg-gradient-to-r from-white/0 via-white/5 to-white/0" />
-
-      {isRecording && (
-        <div className="absolute -bottom-6 left-0 right-0 flex items-center justify-center gap-2 text-red-400 text-xs">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400/75 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-400"></span>
-          </span>
-          Recording...
-        </div>
-      )}
     </button>
   );
 } 
