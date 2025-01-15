@@ -40,12 +40,10 @@ const formatTime = (hours: number | string): string => {
   return `${displayHours} ${displayHours === 1 ? 'hour' : 'hours'}, ${displayMinutes} min`;
 };
 
-// Format timestamp
+// Format timestamp to show only time
 const formatTimestamp = (timestamp: number): string => {
   const date = new Date(timestamp);
   return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
     hour: 'numeric',
     minute: 'numeric',
     hour12: true
@@ -423,12 +421,12 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
           <tr className="border-b border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300">
             <th className="p-3 text-left w-[40px]"></th>
             <th className="p-3 text-left min-w-[150px] text-xs">Client</th>
-            <th className="p-3 text-left w-[15%] min-w-[150px] text-xs">Project</th>
-            <th className="p-3 text-left w-[10%] min-w-[100px] text-xs">Partner</th>
-            <th className="p-3 text-left w-[120px] text-xs">{showTimestamp ? 'Time' : 'Duration'}</th>
+            <th className="p-3 text-left w-[15%] min-w-[150px] text-xs">Work Package</th>
+            <th className="p-3 text-left w-[10%] min-w-[100px] text-xs">Employee</th>
+            <th className="p-3 text-left w-[90px] text-xs">Date</th>
+            <th className="p-3 text-left w-[80px] text-xs">Time</th>
             <th className="p-3 text-left w-[70px] text-xs">Rate</th>
             {showTotalCost && <th className="p-3 text-left w-[60px] text-xs">Cost</th>}
-            <th className="p-3 text-left w-[90px] text-xs">Dates</th>
             <th className="p-3 text-left flex-1 min-w-[300px] text-xs">Description</th>
           </tr>
         </thead>
@@ -494,6 +492,51 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   />
                 ) : (
                   <div className="py-1 px-1.5 whitespace-pre-wrap break-words text-xs">{entry.partner}</div>
+                )}
+              </td>
+              <td className="p-3 align-middle">
+                {isEditable ? (
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={(() => {
+                        try {
+                          const date = new Date(entry.startDate);
+                          return date.toISOString().slice(0, 10);
+                        } catch (e) {
+                          return new Date().toISOString().slice(0, 10);
+                        }
+                      })()}
+                      onChange={(e) => {
+                        try {
+                          const newDate = new Date(e.target.value).getTime();
+                          if (!isNaN(newDate)) {
+                            handleEdit(entry, 'startDate', newDate);
+                            handleEdit(entry, 'lastWorkedDate', newDate);
+                            onEntryUpdate({
+                              ...entry,
+                              startDate: newDate,
+                              lastWorkedDate: newDate
+                            });
+                          }
+                        } catch (e) {
+                          console.error('Invalid date:', e);
+                        }
+                      }}
+                      className="w-full h-[34px] p-2 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                        bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
+                    />
+                  </div>
+                ) : (
+                  <div className="py-1 px-2 whitespace-nowrap h-[34px] flex items-center text-xs">
+                    {(() => {
+                      try {
+                        return formatDateRange(entry.startDate, entry.lastWorkedDate);
+                      } catch (e) {
+                        return 'Invalid Date';
+                      }
+                    })()}
+                  </div>
                 )}
               </td>
               <td className="p-3 align-middle min-w-[100px]">
@@ -615,51 +658,6 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   </div>
                 </td>
               )}
-              <td className="p-3 align-middle">
-                {isEditable ? (
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={(() => {
-                        try {
-                          const date = new Date(entry.startDate);
-                          return date.toISOString().slice(0, 10);
-                        } catch (e) {
-                          return new Date().toISOString().slice(0, 10);
-                        }
-                      })()}
-                      onChange={(e) => {
-                        try {
-                          const newDate = new Date(e.target.value).getTime();
-                          if (!isNaN(newDate)) {
-                            handleEdit(entry, 'startDate', newDate);
-                            handleEdit(entry, 'lastWorkedDate', newDate);
-                            onEntryUpdate({
-                              ...entry,
-                              startDate: newDate,
-                              lastWorkedDate: newDate
-                            });
-                          }
-                        } catch (e) {
-                          console.error('Invalid date:', e);
-                        }
-                      }}
-                      className="w-full h-[34px] p-2 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
-                        bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
-                    />
-                  </div>
-                ) : (
-                  <div className="py-1 px-2 whitespace-nowrap h-[34px] flex items-center text-xs">
-                    {(() => {
-                      try {
-                        return formatDateRange(entry.startDate, entry.lastWorkedDate);
-                      } catch (e) {
-                        return 'Invalid Date';
-                      }
-                    })()}
-                  </div>
-                )}
-              </td>
               <td className="p-3 align-top w-full">
                 <div className="space-y-4">
                   {/* Main description */}
