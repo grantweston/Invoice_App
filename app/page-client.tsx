@@ -634,44 +634,24 @@ export default function PageClient({ initialEntries }: PageClientProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
-            Work In Progress (WIP) Dashboard
-          </h1>
-          <div className="flex items-center gap-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 px-3 py-1.5 rounded text-xs border dark:border-dark-border h-[38px]">
-            <span className="text-gray-500 dark:text-gray-400">Active Partner:</span>
-            <select
-              value={activePartner}
-              onChange={(e) => {
-                setActivePartner(e.target.value);
-                localStorage.setItem('activePartner', e.target.value);
-              }}
-              className="bg-transparent border-none focus:ring-0 focus:outline-none text-xs text-gray-900 dark:text-gray-100"
-            >
-              <option value="">Select Partner</option>
-              {Array.from(new Set(wipEntries.map(e => e.partner))).filter(Boolean).map(partner => (
-                <option key={partner} value={partner}>{partner}</option>
-              ))}
-              {!wipEntries.some(e => e.partner === defaultPartner) && defaultPartner && (
-                <option value={defaultPartner}>{defaultPartner}</option>
-              )}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <WorkSessionButton
-              onStart={startWorkSession}
-              onEnd={endWorkSession}
-            />
-            <button
-              onClick={() => exportToExcel(wipEntries, useDailyLogs.getState().logs)}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs h-[38px] flex items-center gap-1"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export to Excel
-            </button>
-          </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+          Work In Progress (WIP) Dashboard
+        </h1>
+        <div className="flex items-center gap-2">
+          <WorkSessionButton
+            onStart={startWorkSession}
+            onEnd={endWorkSession}
+          />
+          <button
+            onClick={() => exportToExcel(wipEntries, useDailyLogs.getState().logs)}
+            className="bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/30 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/30
+              px-3 py-1.5 rounded text-xs h-[38px] flex items-center gap-1 transition-all duration-150 hover:scale-105 shadow-lg"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export to Excel
+          </button>
         </div>
       </div>
 

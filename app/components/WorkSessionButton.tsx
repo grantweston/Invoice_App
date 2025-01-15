@@ -32,15 +32,15 @@ export default function WorkSessionButton({ onStart, onEnd }: WorkSessionButtonP
     <button
       onClick={handleClick}
       className={`
-        relative px-6 h-[38px] rounded-lg font-medium text-white
+        relative px-6 h-[38px] rounded-lg font-medium text-white text-xs
         transition-all duration-500 ease-in-out
-        flex items-center gap-2 group
+        flex items-center gap-2 group shadow-lg
         ${isRecording 
-          ? 'bg-red-500 hover:bg-red-600' 
+          ? 'bg-gradient-to-r from-red-500/30 to-red-600/30 hover:from-red-500/40 hover:to-red-600/40 text-red-300 border border-red-500/30 hover:border-red-500/40' 
           : isPending
-            ? 'bg-gray-500'
-            : 'bg-emerald-500 hover:bg-emerald-600'}
-        hover:scale-105 shadow-lg
+            ? 'bg-gradient-to-r from-gray-500/30 to-gray-600/30 text-gray-300 border border-gray-500/30'
+            : 'bg-gradient-to-r from-blue-500/30 to-blue-600/30 hover:from-blue-500/40 hover:to-blue-600/40 text-blue-300 border border-blue-500/30 hover:border-blue-500/40'}
+        hover:scale-105
         ${isPending ? 'cursor-wait' : 'cursor-pointer'}
       `}
       disabled={isPending}
@@ -90,13 +90,13 @@ export default function WorkSessionButton({ onStart, onEnd }: WorkSessionButtonP
       </span>
 
       {/* Hover glow effect */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg bg-gradient-to-r from-white/0 via-white/10 to-white/0" />
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg bg-gradient-to-r from-white/0 via-white/5 to-white/0" />
 
       {isRecording && (
-        <div className="absolute -bottom-6 left-0 right-0 flex items-center justify-center gap-2 text-red-500 text-xs">
+        <div className="absolute -bottom-6 left-0 right-0 flex items-center justify-center gap-2 text-red-400 text-xs">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400/75 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-400"></span>
           </span>
           Recording...
         </div>

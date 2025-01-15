@@ -108,11 +108,11 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-2 flex-shrink-0">
+      <div className="bg-[#111827] dark:bg-[#111827] border-b border-[#1f2937] dark:border-[#1f2937] p-2 flex-shrink-0 shadow-sm">
         <div className="flex justify-between items-center">
           <button
             onClick={() => router.push('/invoices')}
-            className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+            className="flex items-center text-gray-400 hover:text-white transition-colors duration-200 px-2 py-1 rounded-md hover:bg-[#1f2937]"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -120,11 +120,11 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
             Back to Invoices
           </button>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={handleUndo}
               disabled={!canUndo()}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
+              className="p-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-md hover:bg-[#1f2937] disabled:opacity-40 disabled:hover:bg-transparent"
               title="Undo"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -134,7 +134,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
             <button
               onClick={handleRedo}
               disabled={!canRedo()}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
+              className="p-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-md hover:bg-[#1f2937] disabled:opacity-40 disabled:hover:bg-transparent"
               title="Redo"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,7 +146,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
       </div>
 
       {/* Main content */}
-      <div className="flex-1 grid grid-cols-[60%_40%]">
+      <div className="flex-1 grid grid-cols-[60%_40%] bg-[#111827]">
         {/* Google Doc */}
         <div className="h-full overflow-auto">
           <iframe
@@ -156,11 +156,11 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
         </div>
 
         {/* Chat Interface */}
-        <div className="flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-lg h-screen">
+        <div className="flex flex-col bg-[#111827] border-l border-[#1f2937] shadow-xl h-screen">
           {/* Header */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-500 to-blue-600">
+          <div className="p-4 border-b border-[#1f2937] bg-[#111827]">
             <h2 className="text-xl font-bold text-white text-center flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
               Edit with AI
@@ -168,19 +168,19 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
           </div>
 
           {/* Chat History */}
-          <div ref={chatContainerRef} className="h-[25vh] p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+          <div ref={chatContainerRef} className="h-[25vh] p-4 overflow-y-auto bg-[#111827] space-y-4">
             {chatHistory.length === 0 && (
               <div className="space-y-6">
-                <div className="text-center text-gray-400 dark:text-gray-600 mt-4">
-                  <svg className="w-8 h-8 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-center text-gray-500 mt-4">
+                  <svg className="w-8 h-8 mx-auto mb-2 opacity-30 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                   <p className="text-sm">Start a conversation with AI to edit your invoice</p>
                 </div>
                 
-                <div className="opacity-60">
+                <div className="opacity-80">
                   <div className="mb-4 text-left">
-                    <div className="inline-block p-3 rounded-lg max-w-[80%] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    <div className="inline-block p-3 rounded-lg max-w-[80%] bg-[#1f2937] text-gray-200 shadow-sm">
                       How would you like to edit the document?
                     </div>
                   </div>
@@ -195,10 +195,10 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                 }`}
               >
                 <div
-                  className={`inline-block p-3 rounded-lg max-w-[80%] ${
+                  className={`inline-block p-3 rounded-lg max-w-[80%] shadow-sm ${
                     msg.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                      ? 'bg-blue-600/20 text-white border border-blue-500/20'
+                      : 'bg-[#1f2937] text-gray-200'
                   }`}
                 >
                   {msg.content}
@@ -208,7 +208,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
           </div>
 
           {/* Message Input */}
-          <div className="flex-shrink-0 bg-white dark:bg-gray-800 p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex-shrink-0 bg-[#111827] p-4 border-t border-[#1f2937]">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -216,13 +216,13 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder="Ask me to help edit the invoice..."
-                className="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 p-3 rounded-lg bg-[#1f2937] text-white placeholder-gray-400 border border-[#374151] focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
                 disabled={isProcessing}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={isProcessing}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap font-medium transition-colors duration-150 flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-3 bg-blue-600/20 text-white rounded-lg hover:bg-blue-600/30 whitespace-nowrap font-medium transition-all duration-200 flex items-center gap-2 disabled:opacity-50 border border-blue-500/20"
               >
                 {isProcessing ? (
                   <>
@@ -242,34 +242,34 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
           </div>
 
           {/* Billing Summary Table */}
-          <div className="h-[50vh] p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
-            <div className="h-full overflow-x-auto rounded-xl bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm">
-              <table className="min-w-full">
+          <div className="h-[50vh] p-4 border-t border-[#1f2937] bg-[#111827]">
+            <div className="h-full overflow-x-auto rounded-xl bg-[#1f2937] shadow-xl">
+              <table className="min-w-full divide-y divide-[#374151]">
                 <thead>
-                  <tr className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 dark:from-blue-500/5 dark:to-blue-600/5">
-                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">WIP</th>
-                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">On Acct</th>
-                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Net WIP</th>
-                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">To Bill</th>
-                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Write Off</th>
+                  <tr>
+                    <th scope="col" className="px-3 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider bg-[#1f2937]">WIP</th>
+                    <th scope="col" className="px-3 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider bg-[#1f2937]">On Acct</th>
+                    <th scope="col" className="px-3 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider bg-[#1f2937]">Net WIP</th>
+                    <th scope="col" className="px-3 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider bg-[#1f2937]">To Bill</th>
+                    <th scope="col" className="px-3 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider bg-[#1f2937]">Write Off</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors duration-150">
-                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
-                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
+                <tbody className="divide-y divide-[#374151]">
+                  <tr className="hover:bg-[#374151] transition-colors duration-150">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">$0.00</td>
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">$0.00</td>
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">$0.00</td>
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">$0.00</td>
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-white">$0.00</td>
                   </tr>
                 </tbody>
               </table>
 
-              {/* Action Buttons - Moved inside table container */}
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-center space-x-4">
+              {/* Action Buttons */}
+              <div className="p-4 border-t border-[#374151] flex justify-center space-x-4">
                 <button
                   onClick={() => {/* TODO: Implement internal submit */}}
-                  className="px-3 py-1.5 bg-orange-400/80 text-white rounded-lg hover:bg-orange-500/90 text-xs transition-colors duration-150 flex items-center gap-1.5 shadow-sm hover:shadow"
+                  className="px-4 py-2 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg hover:from-orange-500 hover:to-orange-600 text-xs transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-orange-500/20"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -278,7 +278,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                 </button>
                 <button
                   onClick={() => {/* TODO: Implement send to client */}}
-                  className="px-3 py-1.5 bg-emerald-500/80 text-white rounded-lg hover:bg-emerald-600/90 text-xs transition-colors duration-150 flex items-center gap-1.5 shadow-sm hover:shadow"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 text-xs transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-emerald-500/20"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

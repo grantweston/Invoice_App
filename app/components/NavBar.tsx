@@ -52,10 +52,10 @@ export default function NavBar() {
 
   return (
     <>
-      <nav className="w-full bg-gradient-to-r from-blue-600 to-blue-500 dark:from-dark-card dark:to-dark-bg p-4 shadow-lg transition-all duration-300 border-b border-white/10">
+      <nav className="w-full bg-gradient-to-r from-gray-700 to-gray-800 dark:from-dark-card dark:to-dark-bg p-4 shadow-lg transition-all duration-300 border-b border-white/10">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-white dark:text-white">
           <div className="flex items-center space-x-6">
-            <Link href="/">
+            <Link href="/daily-report">
               <div className="flex items-center space-x-2 hover:scale-105 transition-all duration-200">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -120,7 +120,7 @@ export default function NavBar() {
         </div>
         
         {/* Mobile menu */}
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-blue-600 dark:bg-dark-card p-2 flex justify-around items-center border-t border-white/20 backdrop-blur-lg bg-opacity-90">
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-gray-700 dark:bg-dark-card p-2 flex justify-around items-center border-t border-white/20 backdrop-blur-lg bg-opacity-90">
           <Link href="/daily-report">
             <div className={`flex flex-col items-center p-2 rounded-lg transition-all duration-200
               ${isActivePath('/daily-report') ? 'bg-white/20 scale-105' : 'hover:bg-white/10'}`}>
@@ -211,7 +211,7 @@ export default function NavBar() {
                 </button>
                 <button
                   onClick={handleSaveSettings}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 button-press"
+                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 button-press"
                 >
                   Save Changes
                 </button>
