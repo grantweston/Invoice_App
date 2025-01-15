@@ -1100,13 +1100,13 @@ const buildStructuralElements = (content: any[]) => {
     if (item.table) {
       return {
         table: {
-          rows: item.table.rows?.map(row => ({
+          rows: Array.isArray(item.table.rows) ? item.table.rows.map(row => ({
             rowStyle: row.rowStyle,
-            tableCells: row.tableCells?.map(cell => ({
+            tableCells: Array.isArray(row.tableCells) ? row.tableCells.map(cell => ({
               content: buildStructuralElements(cell.content),
               tableCellStyle: cell.tableCellStyle
-            }))
-          })),
+            })) : []
+          })) : [],
           tableStyle: item.table.tableStyle,
           tableRows: item.table.tableRows,
           columnProperties: item.table.columnProperties
@@ -1258,222 +1258,263 @@ Lists and Ranges:
       
       if (jsonMatch) {
         console.log('📋 Extracted JSON:', jsonMatch[0]);
-        let requests = JSON.parse(jsonMatch[0]);
-        console.log('✨ Parsed requests:', requests);
-        
-        // Validate and fix request format
-        requests = requests.map((req: any) => {
-          console.log('🔄 Processing request:', req);
-          
-          // Handle replaceAllText
-          if (req.replaceAllText) {
-            return handleReplaceAllText(req, documentStructure);
-          }
-          
-          // Handle insertText
-          if (req.insertText) {
-            return handleInsertText(req, documentStructure);
-          }
-          
-          // Handle table operations
-          if (req.insertTable || req.deleteTable || req.insertTableRow || req.deleteTableRow || 
-              req.insertTableColumn || req.deleteTableColumn || req.mergeTableCells || 
-              req.unmergeTableCells || req.updateTableCellStyle || req.updateTableRowStyle ||
-              req.updateTableColumnProperties || req.updateTableAlignment) {
-            return handleTableOperation(req, documentStructure);
-          }
-          
-          // Handle list operations
-          if (req.createList || req.deleteList || req.updateList) {
-            return handleListOperation(req, documentStructure);
-          }
-          
-          // Handle style operations
-          if (req.updateTextStyle || req.updateParagraphStyle || req.updateTableCellStyle ||
-              req.updateTableRowStyle || req.createNamedStyle || req.updateNamedStyle) {
-            return handleStyleOperation(req, documentStructure);
-          }
-          
-          // Handle object operations
-          if (req.insertInlineImage || req.deletePositionedObject || req.deleteInlineObject ||
-              req.replaceImage || req.updateEmbeddedObjectBorder || req.updateImageProperties ||
-              req.updatePositionedObjectPositioning) {
-            return handleObjectOperation(req, documentStructure);
-          }
-          
-          // Handle break operations
-          if (req.insertPageBreak || req.insertSectionBreak || req.insertColumnBreak) {
-            return handleBreakOperation(req, documentStructure);
-          }
-          
-          // Handle suggestion operations
-          if (req.acceptAllSuggestions || req.rejectAllSuggestions || 
-              req.acceptSuggestionById || req.rejectSuggestionById) {
-            return handleSuggestionOperation(req);
-          }
-          
-          // Handle linked content operations
-          if (req.insertSheetsChart || req.updateSheetsChart) {
-            return handleLinkedContentOperation(req, documentStructure);
-          }
-          
-          // Handle equation operations
-          if (req.insertEquation || req.updateEquationStyle) {
-            return handleEquationOperation(req, documentStructure);
-          }
-          
-          // Handle person operations
-          if (req.insertPerson) {
-            return handlePersonOperation(req, documentStructure);
-          }
-          
-          // Handle autotext operations
-          if (req.insertAutoText) {
-            return handleAutoTextOperation(req, documentStructure);
-          }
-          
-          // Handle tab operations
-          if (req.createDocumentTab || req.deleteDocumentTab) {
-            return handleDocumentTabOperation(req);
-          }
-          
-          // Handle bookmark operations
-          if (req.insertBookmark || req.deleteBookmark) {
-            return handleBookmarkOperation(req, documentStructure);
-          }
-          
-          // Handle border operations
-          if (req.updateBorders) {
-            return handleBorderOperation(req, documentStructure);
-          }
-          
-          // Handle color operations
-          if (req.updateColor) {
-            return handleColorOperation(req, documentStructure);
-          }
-          
-          // Handle named range operations
-          if (req.createNamedRange || req.deleteNamedRange || req.updateNamedRanges) {
-            return handleNamedRangeOperation(req, documentStructure);
-          }
-
-          if (req.updateDocumentStyle) {
-            return handleDocumentStyleOperation(req, documentStructure);
-          }
-
-          if (req.updateSectionStyle) {
-            return handleSectionStyleOperation(req, documentStructure);
-          }
-
-          if (req.createFootnote || req.updateFootnoteStyle) {
-            return handleFootnoteOperation(req, documentStructure);
-          }
-
-          if (req.createHeader || req.createFooter) {
-            return handleHeaderFooterOperation(req, documentStructure);
-          }
-
-          return req;
-        });
-
-        // Filter out invalid requests
-        const originalLength = requests.length;
-        requests = requests.filter((req: any) => {
-          // Prevent dangerous global replacements
-          const dangerousPatterns = ['*', '.', '\\s+'];
-          const hasDangerousPattern = dangerousPatterns.some(pattern => 
-            req.replaceAllText?.containsText?.text === pattern
-          );
-          if (hasDangerousPattern) {
-            console.log('❌ Blocked dangerous global replacement pattern:', req.replaceAllText?.containsText?.text);
-            return false;
-          }
-
-          // Validate replaceAllText
-          if (req.replaceAllText) {
-            const searchText = req.replaceAllText.containsText?.text;
-            // Minimum length to prevent too broad replacements
-            if (searchText && searchText.length < 3) {
-              console.log('❌ Search text too short:', searchText);
-              return false;
-            }
-            
-            // Check if text exists in any paragraph content
-            const textExists = documentStructure.body.content.some(element => {
-              if (element.paragraph?.elements) {
-                return element.paragraph.elements.some(el => 
-                  el.textRun?.content?.includes(searchText)
-                );
-              }
-              return false;
-            });
-            
-            const isValid = (
-              searchText &&
-              typeof searchText === 'string' &&
-              req.replaceAllText.replaceText &&
-              typeof req.replaceAllText.replaceText === 'string' &&
-              textExists
-            );
-            if (!isValid) {
-              if (!textExists) {
-                console.log('❌ Text not found in document:', searchText);
-              } else {
-                console.log('❌ Invalid replaceAllText request:', req);
-              }
-            }
-            return isValid;
-          }
-
-          // Validate insertText
-          if (req.insertText) {
-            // Don't allow insertions at the very beginning of the document
-            if (req.insertText.location?.index <= 1) {
-              console.log('❌ Prevented insertion at document start');
-              return false;
-            }
-
-            const isValid = (
-              typeof req.insertText.location?.index === 'number' &&
-              req.insertText.text &&
-              typeof req.insertText.text === 'string' &&
-              !req.insertText.text.includes('expert billing assistant') && // Prevent system prompt insertion
-              req.insertText.text.trim().length > 0 // Prevent empty insertions
-            );
-            if (!isValid) {
-              if (req.insertText.text?.includes('expert billing assistant')) {
-                console.log('❌ Prevented system prompt insertion');
-              } else if (!req.insertText.text?.trim()) {
-                console.log('❌ Prevented empty text insertion');
-              } else {
-                console.log('❌ Invalid insertText request:', req);
-              }
-            }
-            return isValid;
-          }
-
-          console.log('❌ Unknown request type:', req);
-          return false;
-        });
-        console.log(`🧹 Filtered requests: ${requests.length} valid out of ${originalLength} total`);
-        console.log('📤 Final requests to be sent:', requests);
-
-        // Apply the updates
-        console.log('🚀 Sending update request to Google Docs API...');
         try {
-          // Prevent empty request arrays
-          if (!requests || requests.length === 0) {
-            console.log('⚠️ No valid requests to process');
-            return {
-              response: "I analyzed the document but couldn't find the exact text to modify. Please verify the text you want to change exists exactly as specified in the document.",
-              documentUpdated: false
+          // Pre-process the JSON string to evaluate any expressions
+          const processedJson = jsonMatch[0].replace(
+            /:\s*(\d+)\s*\+\s*(\d+)/g,
+            (match, num1, num2) => `: ${parseInt(num1) + parseInt(num2)}`
+          );
+          
+          let requests = JSON.parse(processedJson);
+          console.log('✨ Parsed requests:', requests);
+
+          // Validate and fix request format
+          requests = requests.map((req: any) => {
+            console.log('🔄 Processing request:', req);
+            
+            // Handle replaceAllText
+            if (req.replaceAllText) {
+              return handleReplaceAllText(req, documentStructure);
+            }
+            
+            // Handle insertText
+            if (req.insertText) {
+              return handleInsertText(req, documentStructure);
+            }
+            
+            // Handle table operations
+            if (req.insertTable || req.deleteTable || req.insertTableRow || req.deleteTableRow || 
+                req.insertTableColumn || req.deleteTableColumn || req.mergeTableCells || 
+                req.unmergeTableCells || req.updateTableCellStyle || req.updateTableRowStyle ||
+                req.updateTableColumnProperties || req.updateTableAlignment) {
+              return handleTableOperation(req, documentStructure);
+            }
+            
+            // Handle list operations
+            if (req.createList || req.deleteList || req.updateList) {
+              return handleListOperation(req, documentStructure);
+            }
+            
+            // Handle style operations
+            if (req.updateTextStyle || req.updateParagraphStyle || req.updateTableCellStyle ||
+                req.updateTableRowStyle || req.createNamedStyle || req.updateNamedStyle) {
+              return handleStyleOperation(req, documentStructure);
+            }
+            
+            // Handle object operations
+            if (req.insertInlineImage || req.deletePositionedObject || req.deleteInlineObject ||
+                req.replaceImage || req.updateEmbeddedObjectBorder || req.updateImageProperties ||
+                req.updatePositionedObjectPositioning) {
+              return handleObjectOperation(req, documentStructure);
+            }
+            
+            // Handle break operations
+            if (req.insertPageBreak || req.insertSectionBreak || req.insertColumnBreak) {
+              return handleBreakOperation(req, documentStructure);
+            }
+            
+            // Handle suggestion operations
+            if (req.acceptAllSuggestions || req.rejectAllSuggestions || 
+                req.acceptSuggestionById || req.rejectSuggestionById) {
+              return handleSuggestionOperation(req);
+            }
+            
+            // Handle linked content operations
+            if (req.insertSheetsChart || req.updateSheetsChart) {
+              return handleLinkedContentOperation(req, documentStructure);
+            }
+            
+            // Handle equation operations
+            if (req.insertEquation || req.updateEquationStyle) {
+              return handleEquationOperation(req, documentStructure);
+            }
+            
+            // Handle person operations
+            if (req.insertPerson) {
+              return handlePersonOperation(req, documentStructure);
+            }
+            
+            // Handle autotext operations
+            if (req.insertAutoText) {
+              return handleAutoTextOperation(req, documentStructure);
+            }
+            
+            // Handle tab operations
+            if (req.createDocumentTab || req.deleteDocumentTab) {
+              return handleDocumentTabOperation(req);
+            }
+            
+            // Handle bookmark operations
+            if (req.insertBookmark || req.deleteBookmark) {
+              return handleBookmarkOperation(req, documentStructure);
+            }
+            
+            // Handle border operations
+            if (req.updateBorders) {
+              return handleBorderOperation(req, documentStructure);
+            }
+            
+            // Handle color operations
+            if (req.updateColor) {
+              return handleColorOperation(req, documentStructure);
+            }
+            
+            // Handle named range operations
+            if (req.createNamedRange || req.deleteNamedRange || req.updateNamedRanges) {
+              return handleNamedRangeOperation(req, documentStructure);
+            }
+
+            if (req.updateDocumentStyle) {
+              return handleDocumentStyleOperation(req, documentStructure);
+            }
+
+            if (req.updateSectionStyle) {
+              return handleSectionStyleOperation(req, documentStructure);
+            }
+
+            if (req.createFootnote || req.updateFootnoteStyle) {
+              return handleFootnoteOperation(req, documentStructure);
+            }
+
+            if (req.createHeader || req.createFooter) {
+              return handleHeaderFooterOperation(req, documentStructure);
+            }
+
+            return req;
+          });
+
+          // Filter out invalid requests
+          const originalLength = requests.length;
+          requests = requests.filter((req: any) => {
+            // Prevent dangerous global replacements
+            const dangerousPatterns = ['*', '.', '\\s+'];
+            const hasDangerousPattern = dangerousPatterns.some(pattern => 
+              req.replaceAllText?.containsText?.text === pattern
+            );
+            if (hasDangerousPattern) {
+              console.log('❌ Blocked dangerous global replacement pattern:', req.replaceAllText?.containsText?.text);
+              return false;
+            }
+
+            // Validate replaceAllText
+            if (req.replaceAllText) {
+              const searchText = req.replaceAllText.containsText?.text;
+              // Minimum length to prevent too broad replacements
+              if (searchText && searchText.length < 3) {
+                console.log('❌ Search text too short:', searchText);
+                return false;
+              }
+              
+              // Check if text exists in any paragraph content
+              const textExists = documentStructure.body.content.some(element => {
+                if (element.paragraph?.elements) {
+                  return element.paragraph.elements.some(el => 
+                    el.textRun?.content?.includes(searchText)
+                  );
+                }
+                return false;
+              });
+              
+              const isValid = (
+                searchText &&
+                typeof searchText === 'string' &&
+                req.replaceAllText.replaceText &&
+                typeof req.replaceAllText.replaceText === 'string' &&
+                textExists
+              );
+              if (!isValid) {
+                if (!textExists) {
+                  console.log('❌ Text not found in document:', searchText);
+                } else {
+                  console.log('❌ Invalid replaceAllText request:', req);
+                }
+              }
+              return isValid;
+            }
+
+            // Validate insertText
+            if (req.insertText) {
+              // Don't allow insertions at the very beginning of the document
+              if (req.insertText.location?.index <= 1) {
+                console.log('❌ Prevented insertion at document start');
+                return false;
+              }
+
+              const isValid = (
+                typeof req.insertText.location?.index === 'number' &&
+                req.insertText.text &&
+                typeof req.insertText.text === 'string' &&
+                !req.insertText.text.includes('expert billing assistant') && // Prevent system prompt insertion
+                req.insertText.text.trim().length > 0 // Prevent empty insertions
+              );
+              if (!isValid) {
+                if (req.insertText.text?.includes('expert billing assistant')) {
+                  console.log('❌ Prevented system prompt insertion');
+                } else if (!req.insertText.text?.trim()) {
+                  console.log('❌ Prevented empty text insertion');
+                } else {
+                  console.log('❌ Invalid insertText request:', req);
+                }
+              }
+              return isValid;
+            }
+
+            console.log('❌ Unknown request type:', req);
+            return false;
+          });
+          console.log(`🧹 Filtered requests: ${requests.length} valid out of ${originalLength} total`);
+          console.log('📤 Final requests to be sent:', requests);
+
+          // Apply the updates
+          console.log('🚀 Sending update request to Google Docs API...');
+          try {
+            // Prevent empty request arrays
+            if (!requests || requests.length === 0) {
+              console.log('⚠️ No valid requests to process');
+              return {
+                response: "I analyzed the document but couldn't find the exact text to modify. Please verify the text you want to change exists exactly as specified in the document.",
+                documentUpdated: false
+              };
+            }
+
+            await clientDocsService.updateDocument(documentId, requests);
+            console.log('✅ Successfully updated document');
+          } catch (error) {
+            console.error('❌ Failed to update document:', error);
+            if (error instanceof Error) {
+              console.error('Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+              });
+            }
+            throw error;
+          }
+          
+          // Extract all sections after the JSON array
+          const sectionsMatch = responseText
+            .split(/\]\s*/)
+            .slice(1)
+            .join('')
+            .match(/✅ Changes Made:[\s\S]*?(?=🔍 Reason for Changes:)|\n🔍 Reason for Changes:[\s\S]*?(?=✓ To Verify:)|\n✓ To Verify:[\s\S]*/g);
+
+          if (sectionsMatch) {
+            const formattedResponse = sectionsMatch
+              .map(section => section.trim())
+              .join('\n\n');
+            return { 
+              response: formattedResponse,
+              documentUpdated: true 
             };
           }
-
-          await clientDocsService.updateDocument(documentId, requests);
-          console.log('✅ Successfully updated document');
+          
+          // Fallback if sections aren't properly formatted
+          return { 
+            response: '✅ Changes applied successfully\n\n' + responseText.split(/\]\s*/).slice(1).join('').trim(),
+            documentUpdated: true 
+          };
         } catch (error) {
-          console.error('❌ Failed to update document:', error);
+          console.error('Error in JSON parsing:', error);
           if (error instanceof Error) {
             console.error('Error details:', {
               name: error.name,
@@ -1483,29 +1524,6 @@ Lists and Ranges:
           }
           throw error;
         }
-        
-        // Extract all sections after the JSON array
-        const sectionsMatch = responseText
-          .split(/\]\s*/)
-          .slice(1)
-          .join('')
-          .match(/✅ Changes Made:[\s\S]*?(?=🔍 Reason for Changes:)|\n🔍 Reason for Changes:[\s\S]*?(?=✓ To Verify:)|\n✓ To Verify:[\s\S]*/g);
-
-        if (sectionsMatch) {
-          const formattedResponse = sectionsMatch
-            .map(section => section.trim())
-            .join('\n\n');
-          return { 
-            response: formattedResponse,
-            documentUpdated: true 
-          };
-        }
-        
-        // Fallback if sections aren't properly formatted
-        return { 
-          response: '✅ Changes applied successfully\n\n' + responseText.split(/\]\s*/).slice(1).join('').trim(),
-          documentUpdated: true 
-        };
       }
 
       return { 
@@ -1559,21 +1577,25 @@ const handleReplaceAllText = (req: any, doc: any) => {
   };
 };
 
-const handleInsertText = (req: any, doc: any) => {
+const handleInsertText = (req: any, documentStructure: any) => {
   if (req.insertText?.location?.index === 'END_OF_DOCUMENT') {
-    const lastElement = doc.body.content[doc.body.content.length - 1];
-    const endIndex = lastElement ? doc.body.content.length : 0;
-    return {
-      ...req,
-      insertText: {
-        ...req.insertText,
-        location: { 
-          index: endIndex,
-          segmentId: req.insertText.location.segmentId
-        }
-      }
-    };
+    // If the user wants to insert at end, just pass the request as is
+    return req;
   }
+
+  const docLength = getDocumentTextLength(documentStructure);
+  const requestedIndex = req.insertText?.location?.index;
+
+  if (typeof requestedIndex === 'number' && requestedIndex > docLength) {
+    console.log(
+      '🛑 Clamping insertText location from',
+      requestedIndex,
+      'to',
+      docLength
+    );
+    req.insertText.location.index = docLength;
+  }
+
   return req;
 };
 
@@ -1968,6 +1990,23 @@ function handleTabOperation(req: any) {
   }
 
   return req;
+}
+
+function getDocumentTextLength(documentStructure: any): number {
+  let total = 0;
+  if (!documentStructure?.body?.content) return total;
+
+  for (const element of documentStructure.body.content) {
+    if (element.paragraph?.elements) {
+      for (const el of element.paragraph.elements) {
+        if (el.textRun?.content) {
+          total += el.textRun.content.length;
+        }
+      }
+    }
+  }
+
+  return total;
 }
 
 // ... rest of the file remains unchanged ... 

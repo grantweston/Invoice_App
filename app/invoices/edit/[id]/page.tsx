@@ -156,9 +156,37 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
         </div>
 
         {/* Chat Interface */}
-        <div className="h-[50vh] flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-lg">
+        <div className="flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-lg h-screen">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-500 to-blue-600">
+            <h2 className="text-xl font-bold text-white text-center flex items-center justify-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              Edit with AI
+            </h2>
+          </div>
+
           {/* Chat History */}
-          <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto">
+          <div ref={chatContainerRef} className="h-[25vh] p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+            {chatHistory.length === 0 && (
+              <div className="space-y-6">
+                <div className="text-center text-gray-400 dark:text-gray-600 mt-4">
+                  <svg className="w-8 h-8 mx-auto mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <p className="text-sm">Start a conversation with AI to edit your invoice</p>
+                </div>
+                
+                <div className="opacity-60">
+                  <div className="mb-4 text-left">
+                    <div className="inline-block p-3 rounded-lg max-w-[80%] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                      How would you like to edit the document?
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             {chatHistory.map((msg, index) => (
               <div
                 key={index}
@@ -210,6 +238,54 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                   </>
                 )}
               </button>
+            </div>
+          </div>
+
+          {/* Billing Summary Table */}
+          <div className="h-[50vh] p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+            <div className="h-full overflow-x-auto rounded-xl bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 dark:from-blue-500/5 dark:to-blue-600/5">
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">WIP</th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">On Acct</th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Net WIP</th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">To Bill</th>
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Write Off</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors duration-150">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">$0.00</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Action Buttons - Moved inside table container */}
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-center space-x-4">
+                <button
+                  onClick={() => {/* TODO: Implement internal submit */}}
+                  className="px-3 py-1.5 bg-orange-400/80 text-white rounded-lg hover:bg-orange-500/90 text-xs transition-colors duration-150 flex items-center gap-1.5 shadow-sm hover:shadow"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Submit Invoice Internally
+                </button>
+                <button
+                  onClick={() => {/* TODO: Implement send to client */}}
+                  className="px-3 py-1.5 bg-emerald-500/80 text-white rounded-lg hover:bg-emerald-600/90 text-xs transition-colors duration-150 flex items-center gap-1.5 shadow-sm hover:shadow"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Send Invoice to Client
+                </button>
+              </div>
             </div>
           </div>
         </div>

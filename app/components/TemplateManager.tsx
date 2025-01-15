@@ -161,33 +161,35 @@ export default function TemplateManager() {
   };
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice Template</h2>
+    <div className="p-6 bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-gray-700">
+      <h2 className="text-xl font-semibold text-white mb-6">Invoice Template</h2>
       
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* File Upload */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-3">
             Upload New Template
           </label>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <input
               type="file"
               accept=".doc,.docx,.pdf"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-gray-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100"
+              className="block w-full text-sm text-gray-300
+                file:mr-4 file:py-2.5 file:px-4
+                file:rounded-lg file:border-0
+                file:text-sm file:font-medium
+                file:bg-blue-600/20 file:text-blue-400
+                hover:file:bg-blue-600/30 file:transition-all file:shadow-sm
+                file:border file:border-blue-500/30"
             />
             <button
               onClick={handleUpload}
               disabled={!selectedFile || isUploading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg
-                disabled:bg-gray-400 disabled:cursor-not-allowed
-                hover:bg-blue-700 transition-colors"
+              className="px-4 py-2.5 bg-blue-600/20 text-blue-400 rounded-lg
+                disabled:bg-gray-700/20 disabled:text-gray-400 disabled:cursor-not-allowed
+                hover:bg-blue-600/30 transition-all shadow-sm
+                font-medium min-w-[100px] border border-blue-500/30"
             >
               {isUploading ? 'Uploading...' : 'Upload'}
             </button>
@@ -196,63 +198,66 @@ export default function TemplateManager() {
 
         {/* Templates List */}
         <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Available Templates</h3>
+          <h3 className="text-sm font-medium text-gray-300 mb-3">Available Templates</h3>
           {isLoading ? (
-            <div className="text-sm text-gray-500 animate-pulse">
+            <div className="text-sm text-gray-400 animate-pulse">
               Loading templates...
             </div>
           ) : templates.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {templates.map((template) => (
                 <div
                   key={template.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-4 bg-gray-700/50 backdrop-blur-sm rounded-lg
+                    border border-gray-600 hover:border-gray-500 transition-colors"
                 >
                   <div>
-                    <div className="font-medium text-gray-900">{template.name}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-white">{template.name}</div>
+                    <div className="text-sm text-gray-400 mt-0.5">
                       {template.googleDocId ? 'Converted to Google Doc' : 'Original Document'}
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-3">
                     <a
                       href={template.webViewLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-sm px-4 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg
+                        hover:bg-blue-600/30 transition-all font-medium border border-blue-500/30"
                     >
                       View
                     </a>
                     {template.id !== defaultTemplateId && (
                       <button
                         onClick={() => setAsDefault(template.id)}
-                        className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded-full
-                          hover:bg-blue-200 transition-colors"
+                        className="text-sm px-4 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg
+                          hover:bg-blue-600/30 transition-all font-medium border border-blue-500/30"
                       >
                         Set as Default
                       </button>
                     )}
                     {template.id === defaultTemplateId && (
-                      <span className="text-sm px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                      <span className="text-sm px-4 py-1.5 bg-green-600/20 text-green-400 rounded-lg
+                        font-medium border border-green-500/30">
                         Default Template
                       </span>
                     )}
                     <button
                       onClick={() => handleDelete(template.id)}
                       disabled={isDeleting === template.id}
-                      className="p-1 text-red-600 hover:text-red-800 disabled:text-gray-400
-                        disabled:cursor-not-allowed transition-colors rounded-full
-                        hover:bg-red-50"
+                      className="p-2 text-red-400 hover:text-red-300 disabled:text-gray-600
+                        disabled:cursor-not-allowed transition-colors rounded-lg
+                        hover:bg-red-400/10 bg-red-500/10 border border-red-500/30"
                       title="Delete template"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-400 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
               No templates available. Upload one to get started.
             </div>
           )}
