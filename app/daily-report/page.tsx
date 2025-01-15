@@ -76,7 +76,7 @@ export default function DailyReport() {
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-xl font-bold">Daily Activity</h1>
+            <h1 className="text-xl font-bold">Daily Time Sheet</h1>
             <p className="text-sm text-gray-600">
               Showing individual time entries from screen recording analysis
             </p>
