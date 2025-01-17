@@ -109,7 +109,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
     <div className="h-screen flex flex-col">
       {/* Header */}
       <div className="bg-gray-50 dark:bg-[#111827] border-b border-gray-200 dark:border-[#1f2937] p-2 flex-shrink-0 shadow-sm">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center">
           <button
             onClick={() => router.push('/invoices')}
             className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f2937] text-xs"
@@ -119,52 +119,68 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
             </svg>
             Back to Invoices
           </button>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleUndo}
-              disabled={!canUndo()}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f2937] disabled:opacity-40 disabled:hover:bg-transparent"
-              title="Undo"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-              </svg>
-            </button>
-            <button
-              onClick={handleRedo}
-              disabled={!canRedo()}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f2937] disabled:opacity-40 disabled:hover:bg-transparent"
-              title="Redo"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
-              </svg>
-            </button>
-          </div>
+          <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-3" />
+          <a
+            href={`https://docs.google.com/document/d/${params.id}/edit`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f2937] text-xs flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            Open in Google Docs
+          </a>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 grid grid-cols-[60%_40%] bg-white dark:bg-[#111827]">
+      <div className="flex-1 grid grid-cols-[70%_30%] bg-white dark:bg-[#111827]">
         {/* Google Doc */}
-        <div className="h-full overflow-auto">
-          <iframe
-            src={`https://docs.google.com/document/d/${params.id}/edit?embedded=true`}
-            className="w-full h-full border-0 min-h-[calc(100vh-56px)]"
-          />
+        <div className="h-full overflow-auto bg-[#f8f9fa] dark:bg-[#1f2937] flex justify-center p-3">
+          <div className="w-[140%] transform scale-[0.7] origin-top rounded-xl overflow-hidden shadow-lg">
+            <iframe
+              src={`https://docs.google.com/document/d/${params.id}/edit?rm=minimal&embedded=true&chrome=false`}
+              className="w-full h-full border-0"
+              style={{ minHeight: 'calc(100vh * 1.4)' }}
+            />
+          </div>
         </div>
 
         {/* Chat Interface */}
-        <div className="flex flex-col bg-white dark:bg-[#111827] border-l border-gray-200 dark:border-[#1f2937] shadow-xl h-screen">
+        <div className="flex flex-col bg-white dark:bg-[#111827] border-l border-gray-200 dark:border-[#1f2937] shadow-xl h-screen m-3 rounded-xl overflow-hidden">
           {/* Header */}
           <div className="p-3 border-b border-gray-300 dark:border-[#1f2937] bg-gray-100 dark:bg-[#1f2937]">
-            <h2 className="text-base font-bold text-gray-900 dark:text-white text-center flex items-center justify-center gap-2">
-              <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-              Edit with AI
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                Edit with AI
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleUndo}
+                  disabled={!canUndo()}
+                  className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-md hover:bg-gray-200 dark:hover:bg-[#374151] disabled:opacity-40 disabled:hover:bg-transparent"
+                  title="Undo"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleRedo}
+                  disabled={!canRedo()}
+                  className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 rounded-md hover:bg-gray-200 dark:hover:bg-[#374151] disabled:opacity-40 disabled:hover:bg-transparent"
+                  title="Redo"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Chat History */}
@@ -209,7 +225,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
 
           {/* Message Input */}
           <div className="flex-shrink-0 bg-gray-100 dark:bg-[#1f2937] p-3 border-t border-gray-300 dark:border-[#1f2937]">
-            <div className="flex gap-2">
+            <div className="flex gap-2 px-3">
               <input
                 type="text"
                 value={message}
@@ -222,7 +238,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
               <button
                 onClick={handleSendMessage}
                 disabled={isProcessing}
-                className="px-4 py-2 bg-blue-600 dark:bg-blue-600/50 text-white dark:text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600/60 whitespace-nowrap font-medium transition-all duration-200 flex items-center gap-2 disabled:opacity-80 border border-blue-700 dark:border-blue-500/40 text-xs"
+                className="px-4 py-2 bg-blue-500/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-500/40 text-xs transition-all duration-200 flex items-center gap-1.5 font-medium border border-blue-500/40 disabled:opacity-50 w-[88px]"
               >
                 {isProcessing ? (
                   <>
@@ -232,7 +248,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                 ) : (
                   <>
                     <span>Send</span>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
                   </>
@@ -269,18 +285,18 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
               <div className="p-3 border-t border-gray-200 dark:border-[#374151] flex justify-center space-x-3">
                 <button
                   onClick={() => {/* TODO: Implement internal submit */}}
-                  className="px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-xs transition-all duration-200 flex items-center gap-1.5 shadow-lg hover:shadow-orange-500/20"
+                  className="px-4 py-2 bg-orange-500/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-500/40 text-xs transition-all duration-200 flex items-center gap-1.5 font-medium border border-orange-500/40"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   Submit Invoice Internally
                 </button>
                 <button
                   onClick={() => {/* TODO: Implement send to client */}}
-                  className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-xs transition-all duration-200 flex items-center gap-1.5 shadow-lg hover:shadow-emerald-500/20"
+                  className="px-4 py-2 bg-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-500/40 text-xs transition-all duration-200 flex items-center gap-1.5 font-medium border border-emerald-500/40"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   Send Invoice to Client
