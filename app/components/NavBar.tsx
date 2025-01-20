@@ -84,11 +84,21 @@ export default function NavBar() {
 
   const handleLogEnv = () => {
     console.log('🔧 Environment Variables:', {
-      NODE_ENV: process.env.NODE_ENV,
-      NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
-      // Only log existence of sensitive variables
-      HAS_GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
-      HAS_GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+      nodeEnv: process.env.NODE_ENV,
+      nextPublicBaseUrl: process.env.NEXT_PUBLIC_BASE_URL,
+      // Google API credentials
+      hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+      hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+      hasProjectId: !!process.env.GOOGLE_PROJECT_ID,
+      hasPrivateKeyId: !!process.env.GOOGLE_PRIVATE_KEY_ID,
+      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+      // Detailed checks
+      clientEmailLength: process.env.GOOGLE_CLIENT_EMAIL?.length || 0,
+      privateKeyLength: process.env.GOOGLE_PRIVATE_KEY?.length || 0,
+      privateKeyStartsWith: process.env.GOOGLE_PRIVATE_KEY?.substring(0, 27) || 'not found',
+      privateKeyEndsWith: process.env.GOOGLE_PRIVATE_KEY?.substring(-25) || 'not found',
+      privateKeyHasNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\\n'),
+      privateKeyHasRealNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\n'),
     });
   };
 
