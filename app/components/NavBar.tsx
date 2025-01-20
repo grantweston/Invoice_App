@@ -67,15 +67,8 @@ export default function NavBar() {
       console.log('🚀 Starting Google Drive API test...');
       const response = await fetch('/api/test-googleapi');
       console.log('📨 Response status:', response.status);
-      
       const data = await response.json();
       console.log('✅ API Response:', data);
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      alert(`${data.message}\nFound ${data.fileCount} files.\nFirst file: ${data.firstFile?.name || 'None'}`);
     } catch (error) {
       console.error('❌ Test API failed:', error);
       if (error instanceof Error) {
@@ -86,18 +79,6 @@ export default function NavBar() {
         });
       }
       alert('Failed to test API. Check console for details.');
-    }
-  };
-
-  const handleBasicTest = async () => {
-    try {
-      console.log('🚀 Starting basic API test...');
-      const response = await fetch('/api/test-basic');
-      console.log('📨 Response status:', response.status);
-      const data = await response.json();
-      console.log('✅ API Response:', data);
-    } catch (error) {
-      console.error('❌ Basic test failed:', error);
     }
   };
 
@@ -327,12 +308,6 @@ export default function NavBar() {
               className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105"
             >
               Test API
-            </button>
-            <button
-              onClick={handleBasicTest}
-              className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105 ml-2"
-            >
-              Basic Test
             </button>
             <ThemeToggle />
             <button 
