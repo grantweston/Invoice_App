@@ -54,7 +54,16 @@ export async function GET() {
       fields: 'files(id, name)',
     });
 
-    console.log('✨ Google Drive response:', response.data);
+    // Log the complete raw response
+    console.log('🔍 Raw response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+      config: response.config,
+      data: response.data,
+    });
+
+    console.log('✨ Google Drive response data:', response.data);
     return new Response(
       JSON.stringify({ 
         success: true,
@@ -76,6 +85,16 @@ export async function GET() {
     );
   } catch (error) {
     console.error('❌ Test API failed:', error);
+    // Log raw error response if available
+    if (error.response) {
+      console.error('🔍 Raw error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        headers: error.response.headers,
+        data: error.response.data,
+      });
+    }
+    
     const errorDetails = error instanceof Error ? {
       name: error.name,
       message: error.message,
