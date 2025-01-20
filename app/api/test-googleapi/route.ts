@@ -20,18 +20,27 @@ export async function GET() {
     try {
       // Process private key more carefully
       const rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
-      const keyParts = rawKey.split('\\n');
-      const privateKey = keyParts.join('\n');
+      
+      // Ensure key has proper format
+      let privateKey = rawKey;
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}`;
+      }
+      if (!privateKey.includes('-----END PRIVATE KEY-----')) {
+        privateKey = `${privateKey}\n-----END PRIVATE KEY-----`;
+      }
+      
+      // Replace escaped newlines with real ones
+      privateKey = privateKey.replace(/\\n/g, '\n');
       
       console.log('📝 Private key format:', {
         originalLength: rawKey.length,
         processedLength: privateKey.length,
-        partsCount: keyParts.length,
         startsWithHeader: privateKey.startsWith('-----BEGIN PRIVATE KEY-----'),
         endsWithFooter: privateKey.endsWith('-----END PRIVATE KEY-----'),
         newlineCount: privateKey.split('\n').length,
-        firstPart: keyParts[0],
-        lastPart: keyParts[keyParts.length - 1]
+        firstLine: privateKey.split('\n')[0],
+        lastLine: privateKey.split('\n').slice(-1)[0]
       });
       
       const auth = new JWT({
