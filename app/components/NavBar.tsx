@@ -62,6 +62,29 @@ export default function NavBar() {
     }
   };
 
+  const handleTestApi = async () => {
+    try {
+      console.log('🚀 Starting Gemini API test...');
+      const response = await fetch('/api/test-gemini');
+      console.log('📨 Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('✅ API Response:', data);
+      
+      alert(data.response);
+    } catch (error) {
+      console.error('❌ Test API failed:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
+      alert('Failed to test API. Check console for details.');
+    }
+  };
+
   // Helper function to get time in minutes
   const getTimeInMinutes = (entry: StoreWIPEntry | WIPEntry): number => {
     return entry.timeInMinutes || 0;
@@ -279,10 +302,15 @@ export default function NavBar() {
             />
             <button
               onClick={handleStartDemo}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-all duration-200 
-                hover:scale-105 border border-white/20 hover:border-white/30 shadow-lg font-medium text-xs"
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105"
             >
               Start Demo
+            </button>
+            <button
+              onClick={handleTestApi}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105"
+            >
+              Test API
             </button>
             <ThemeToggle />
             <button 
