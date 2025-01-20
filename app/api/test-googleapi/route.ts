@@ -30,6 +30,7 @@ export async function GET() {
           status: 400,
           headers: {
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-store'
           }
         }
       );
@@ -80,11 +81,20 @@ export async function GET() {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
         }
       }
     );
   } catch (error) {
     console.error('❌ Test API failed:', error);
+    
+    // Check if the error response contains HTML
+    let errorContent = '';
+    if (error.response?.data && typeof error.response.data === 'string' && error.response.data.includes('<!DOCTYPE')) {
+      console.error('🔍 HTML Error Content:', error.response.data);
+      errorContent = error.response.data;
+    }
+    
     // Log raw error response if available
     if (error.response) {
       console.error('🔍 Raw error response:', {
@@ -99,8 +109,10 @@ export async function GET() {
       name: error.name,
       message: error.message,
       stack: error.stack,
+      htmlContent: errorContent || undefined
     } : error;
     
+    // Ensure we return a proper JSON response even in error cases
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -116,6 +128,7 @@ export async function GET() {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
         }
       }
     );
