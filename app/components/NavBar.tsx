@@ -102,6 +102,18 @@ export default function NavBar() {
     });
   };
 
+  const handleTestEnv = async () => {
+    try {
+      console.log('🔧 Testing environment variables...');
+      const response = await fetch('/api/test-env');
+      console.log('📨 Response status:', response.status);
+      const data = await response.json();
+      console.log('✨ Server environment:', data);
+    } catch (error) {
+      console.error('❌ Environment test failed:', error);
+    }
+  };
+
   // Helper function to get time in minutes
   const getTimeInMinutes = (entry: StoreWIPEntry | WIPEntry): number => {
     return entry.timeInMinutes || 0;
@@ -334,6 +346,12 @@ export default function NavBar() {
               className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105 ml-2"
             >
               Log Env
+            </button>
+            <button
+              onClick={handleTestEnv}
+              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105"
+            >
+              Test Env
             </button>
             <ThemeToggle />
             <button 
