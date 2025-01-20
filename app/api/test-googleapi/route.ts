@@ -34,9 +34,27 @@ export async function GET() {
 
     // Initialize auth client
     console.log('🔐 Initializing auth client...');
+    
+    // Get and format private key
+    const rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
+    console.log('📝 Private key checks:', {
+      startsCorrectly: rawKey.startsWith('-----BEGIN PRIVATE KEY-----'),
+      hasNewlines: rawKey.includes('\\n'),
+      hasRealNewlines: rawKey.includes('\n'),
+      length: rawKey.length
+    });
+    
+    const privateKey = rawKey
+      .replace(/\\n/g, '\n')  // Replace escaped newlines
+      .replace(/^"|"$/g, ''); // Remove any wrapping quotes
+    
+    if (!privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+      throw new Error('Private key is not in the correct format');
+    }
+
     const auth = new JWT({
       email: process.env.GOOGLE_CLIENT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      key: privateKey,
       scopes: ['https://www.googleapis.com/auth/drive'],
     });
 
