@@ -82,6 +82,16 @@ export default function NavBar() {
     }
   };
 
+  const handleLogEnv = () => {
+    console.log('🔧 Environment Variables:', {
+      NODE_ENV: process.env.NODE_ENV,
+      NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+      // Only log existence of sensitive variables
+      HAS_GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
+      HAS_GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+    });
+  };
+
   // Helper function to get time in minutes
   const getTimeInMinutes = (entry: StoreWIPEntry | WIPEntry): number => {
     return entry.timeInMinutes || 0;
@@ -308,6 +318,12 @@ export default function NavBar() {
               className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105"
             >
               Test API
+            </button>
+            <button
+              onClick={handleLogEnv}
+              className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105 ml-2"
+            >
+              Log Env
             </button>
             <ThemeToggle />
             <button 
