@@ -67,6 +67,7 @@ export default function NavBar() {
       console.log('🚀 Starting Google Drive API test...');
       const response = await fetch('/api/test-googleapi');
       console.log('📨 Response status:', response.status);
+      console.log('📨 Raw response:', response);
       const data = await response.json();
       console.log('✅ API Response:', data);
     } catch (error) {
