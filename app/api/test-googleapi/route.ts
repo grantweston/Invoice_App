@@ -1,42 +1,49 @@
 export const runtime = 'nodejs' // Force Node.js runtime instead of Edge
 
 import { google } from 'googleapis';
-import { OAuth2Client } from 'google-auth-library';
+import { JWT } from 'google-auth-library';
 
 export async function GET() {
   console.log('🚀 Starting Google Drive API test...');
   
   try {
     console.log('🔧 Environment configuration:', {
-      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
-      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+      hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
       nodeEnv: process.env.NODE_ENV,
     });
 
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      throw new Error('Missing required Google OAuth credentials');
+    if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
+      throw new Error('Missing required Google API credentials');
     }
 
-    // Initialize OAuth2 client
-    console.log('🔐 Initializing OAuth2 client...');
-    const oauth2Client = new OAuth2Client({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    // Initialize auth client
+    console.log('🔐 Initializing auth client...');
+    const auth = new JWT({
+      email: process.env.GOOGLE_CLIENT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/drive'],
     });
 
-    // Initialize the Drive API with readonly scope
+    // Initialize the Drive API
     console.log('🚀 Initializing Drive API...');
-    const drive = google.drive({ 
-      version: 'v3', 
-      auth: oauth2Client,
+    const drive = google.drive({ version: 'v3', auth });
+
+    // Simple test: List files in root (limited to 1 just for testing)
+    console.log('📂 Attempting to list files...');
+    const response = await drive.files.list({
+      pageSize: 1,
+      fields: 'files(id, name)',
     });
 
-    // For testing, we'll just return the auth configuration
+    console.log('✨ Google Drive response:', response.data);
     return Response.json({ 
-      message: 'Google Drive API client initialized',
+      message: 'Google Drive API is working!',
+      fileCount: response.data.files?.length || 0,
+      firstFile: response.data.files?.[0],
       environment: {
-        hasClientId: !!process.env.GOOGLE_CLIENT_ID,
-        hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+        hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
         nodeEnv: process.env.NODE_ENV,
       }
     }, { status: 200 });
@@ -53,8 +60,8 @@ export async function GET() {
       error: 'Failed to initialize Google Drive API',
       errorDetails,
       environment: {
-        hasClientId: !!process.env.GOOGLE_CLIENT_ID,
-        hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+        hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
         nodeEnv: process.env.NODE_ENV,
       }
     }, { status: 500 });
