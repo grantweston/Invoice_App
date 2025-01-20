@@ -6,7 +6,7 @@ const nextConfig = {
     // Disable automatic static optimization
     isrMemoryCacheSize: 0,
     // Explicitly configure tracing
-    outputFileTracingRoot: process.cwd(),
+    outputFileTracingRoot: join(__dirname, '../../'),
     outputFileTracingExcludes: {
       '*': [
         'node_modules/@swc/core-linux-x64-gnu',
