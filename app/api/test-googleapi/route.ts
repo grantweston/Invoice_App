@@ -1,11 +1,29 @@
 "use server";
 
-import { NextResponse } from "next/server";
-import { google } from 'googleapis';
-import { JWT } from 'google-auth-library';
+let google;
+let JWT;
+try {
+  const googleapis = require('googleapis');
+  google = googleapis.google;
+  const { JWT: JsonWebToken } = require('google-auth-library');
+  JWT = JsonWebToken;
+  console.log('✅ Successfully loaded Google APIs');
+} catch (error) {
+  console.error('❌ Failed to load Google APIs:', error);
+}
 
 export async function GET() {
   console.log('🚀 Starting Google Drive API test...');
+  
+  if (!google || !JWT) {
+    console.error('❌ Google APIs not initialized');
+    return Response.json({
+      success: false,
+      error: 'Failed to initialize Google APIs',
+      details: 'Dependencies failed to load'
+    }, { status: 500 });
+  }
+
   console.log('🔧 Environment configuration:', {
     hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
     hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
@@ -37,7 +55,7 @@ export async function GET() {
     });
 
     console.log('✨ Google Drive response:', response.data);
-    return NextResponse.json({ 
+    return Response.json({ 
       message: 'Google Drive API is working!',
       fileCount: response.data.files?.length || 0,
       firstFile: response.data.files?.[0],
@@ -55,7 +73,7 @@ export async function GET() {
       stack: error.stack,
     } : error;
     
-    return NextResponse.json({ 
+    return Response.json({ 
       success: false, 
       error: 'Failed to initialize Google Drive API',
       errorDetails,
