@@ -87,6 +87,11 @@ export async function GET() {
     );
   } catch (error) {
     console.error('❌ Test API failed:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error keys:', Object.keys(error));
+    
+    // Log everything about the error
+    console.error('Full error object:', JSON.stringify(error, null, 2));
     
     // Check if the error response contains HTML
     let errorContent = '';
@@ -102,14 +107,19 @@ export async function GET() {
         statusText: error.response.statusText,
         headers: error.response.headers,
         data: error.response.data,
+        type: typeof error.response.data,
+        keys: Object.keys(error.response),
       });
+    } else {
+      console.error('❌ No error.response available');
     }
     
     const errorDetails = error instanceof Error ? {
       name: error.name,
       message: error.message,
       stack: error.stack,
-      htmlContent: errorContent || undefined
+      htmlContent: errorContent || undefined,
+      fullError: error
     } : error;
     
     // Ensure we return a proper JSON response even in error cases
