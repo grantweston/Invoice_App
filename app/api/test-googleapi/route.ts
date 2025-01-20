@@ -1,11 +1,7 @@
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import { headers } from 'next/headers';
 
 export async function GET() {
-  // Set response headers to ensure JSON
-  const headersList = headers();
-  
   console.log('🚀 Starting Google Drive API test...');
   
   try {
