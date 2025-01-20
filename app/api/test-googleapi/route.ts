@@ -9,6 +9,9 @@ export async function GET() {
       hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
       hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
       nodeEnv: process.env.NODE_ENV,
+      clientEmailLength: process.env.GOOGLE_CLIENT_EMAIL?.length,
+      privateKeyStartsWith: process.env.GOOGLE_PRIVATE_KEY?.substring(0, 20),
+      privateKeyContainsNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\\n'),
     });
 
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
