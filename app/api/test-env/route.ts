@@ -9,14 +9,18 @@ export async function GET() {
       clientEmail: {
         exists: !!process.env.GOOGLE_CLIENT_EMAIL,
         length: process.env.GOOGLE_CLIENT_EMAIL?.length || 0,
-        endsWithGserviceAccount: process.env.GOOGLE_CLIENT_EMAIL?.endsWith('@developer.gserviceaccount.com') || false
+        value: process.env.GOOGLE_CLIENT_EMAIL?.replace(/[^@]/g, '*'), // Show only the domain part
+        endsWithGserviceAccount: process.env.GOOGLE_CLIENT_EMAIL?.endsWith('@developer.gserviceaccount.com') || false,
+        endsWithIam: process.env.GOOGLE_CLIENT_EMAIL?.endsWith('.iam.gserviceaccount.com') || false,
+        containsGserviceaccount: process.env.GOOGLE_CLIENT_EMAIL?.includes('gserviceaccount.com') || false
       },
       privateKey: {
         exists: !!process.env.GOOGLE_PRIVATE_KEY,
         length: process.env.GOOGLE_PRIVATE_KEY?.length || 0,
         startsCorrectly: process.env.GOOGLE_PRIVATE_KEY?.includes('-----BEGIN PRIVATE KEY-----') || false,
         endsCorrectly: process.env.GOOGLE_PRIVATE_KEY?.includes('-----END PRIVATE KEY-----') || false,
-        hasNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\\n') || false
+        hasNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\\n') || false,
+        hasRealNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\n') || false
       },
       projectId: {
         exists: !!process.env.GOOGLE_PROJECT_ID,
