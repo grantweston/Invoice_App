@@ -9,9 +9,15 @@ export async function GET() {
       hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
       hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
       nodeEnv: process.env.NODE_ENV,
-      clientEmailLength: process.env.GOOGLE_CLIENT_EMAIL?.length,
-      privateKeyStartsWith: process.env.GOOGLE_PRIVATE_KEY?.substring(0, 20),
-      privateKeyContainsNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\\n'),
+      clientEmailLength: process.env.GOOGLE_CLIENT_EMAIL?.length || 0,
+      privateKeyLength: process.env.GOOGLE_PRIVATE_KEY?.length || 0,
+      privateKeyStartsWith: process.env.GOOGLE_PRIVATE_KEY?.substring(0, 27) || 'not found',
+      privateKeyEndsWith: process.env.GOOGLE_PRIVATE_KEY?.substring(-25) || 'not found',
+      privateKeyHasNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\\n'),
+      privateKeyHasRealNewlines: process.env.GOOGLE_PRIVATE_KEY?.includes('\n'),
+      hasProjectId: !!process.env.GOOGLE_PROJECT_ID,
+      hasPrivateKeyId: !!process.env.GOOGLE_PRIVATE_KEY_ID,
+      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
     });
 
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
