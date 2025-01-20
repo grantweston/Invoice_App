@@ -5,18 +5,14 @@ import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 
 export async function GET() {
-  try {
-    console.log('📡 Test-GoogleAPI called');
-    
-    // Log environment details
-    const envDetails = {
-      hasEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
-      hasKey: !!process.env.GOOGLE_PRIVATE_KEY,
-      nodeEnv: process.env.NODE_ENV,
-      vercelEnv: process.env.VERCEL_ENV,
-    };
-    console.log('🔑 Environment configuration:', envDetails);
+  console.log('🚀 Starting Google Drive API test...');
+  console.log('🔧 Environment configuration:', {
+    hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+    hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+    nodeEnv: process.env.NODE_ENV,
+  });
 
+  try {
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
       throw new Error('Missing required Google API credentials');
     }
@@ -45,27 +41,28 @@ export async function GET() {
       message: 'Google Drive API is working!',
       fileCount: response.data.files?.length || 0,
       firstFile: response.data.files?.[0],
-      environment: envDetails
-    }, { status: 200 });
-  } catch (error: any) {
-    console.error("❌ Google Drive test failed:", error);
-    if (error instanceof Error) {
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        isJWTError: error instanceof JWT,
-        isGoogleError: error.name.includes('Google')
-      });
-    }
-    return NextResponse.json({ 
-      error: error.message,
-      type: error.name,
       environment: {
-        hasEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
-        hasKey: !!process.env.GOOGLE_PRIVATE_KEY,
+        hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+        hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
         nodeEnv: process.env.NODE_ENV,
-        vercelEnv: process.env.VERCEL_ENV,
+      }
+    }, { status: 200 });
+  } catch (error) {
+    console.error('❌ Test API failed:', error);
+    const errorDetails = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    } : error;
+    
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to initialize Google Drive API',
+      errorDetails,
+      environment: {
+        hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+        hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+        nodeEnv: process.env.NODE_ENV,
       }
     }, { status: 500 });
   }
