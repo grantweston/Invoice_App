@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const { join } = require('path');
+
 const nextConfig = {
   // Disable file tracing entirely for now
   output: 'standalone',
@@ -6,7 +8,7 @@ const nextConfig = {
     // Disable automatic static optimization
     isrMemoryCacheSize: 0,
     // Explicitly configure tracing
-    outputFileTracingRoot: join(__dirname, '../../'),
+    outputFileTracingRoot: join(__dirname),
     outputFileTracingExcludes: {
       '*': [
         'node_modules/@swc/core-linux-x64-gnu',
