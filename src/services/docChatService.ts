@@ -1031,6 +1031,55 @@ EDITING GUIDELINES:
 14. Maintain proper header/footer relationships
 15. Consider page size and margins when positioning objects
 
+DOCUMENT LAYOUT GUIDE:
+
+1. Header Section (Top of page):
+   - Logo "EISNERAMPER" positioned at top-left
+   - Company name "Eisner Advisory Group LLC" aligned top-right
+   - Address block in top-right corner
+   - Phone/Fax numbers below address
+   - Website URL (www.eisneramper.com) below contact info
+
+2. Client Information (Upper left, below header):
+   - "Client:" label followed by client name
+   - Client name appears on next line
+   - Invoice number appears on right side ("Invoice: 001")
+   - This section is the top row of a table with one column and two rows
+
+3. Date and Services Section (Middle):
+   - Date appears below client info
+   - Description of services rendered with date range
+   - Service items listed with amounts aligned right
+   - Each service item has description on left, amount on right
+   - This section is the bottom row of a table with one column and two rows
+
+4. Reminder Section (Middle-bottom):
+   - Italicized reminder text about practice structure changes
+   - Set apart from other content with spacing
+
+5. Payment Instructions (Bottom portion):
+   - Bold header "PLEASE RETURN BOTTOM PORTION WITH PAYMENT - THANK YOU"
+   - Payment URL centered below header
+   - Two-column layout below:
+   
+   Left Column:                    Right Column:
+   - Invoice number               - Invoice amount
+   - Client number               - Amount paid (blank line)
+   - "Please Remit to:" section   - "ACH/Wire Instructions:" section
+   - Mailing address             - Bank details
+                                 - ACH/Wire numbers
+                                 - Account number
+
+6. Key Fields for Processing:
+   - Invoice Number: Located in two places (top right and bottom left)
+   - Client Number: Marked as {Client Number}
+   - Total Amount: USD $7.50
+   - Bank Details: Structured in bottom right section
+
+7. Extra Layout Notes:
+   - Any insertions requested to be "at the end" or "on Page 2" should be made at the bottom of the document below the Payment Instructions section.
+
+
 RESPONSE FORMAT:
 [
   {
@@ -1252,283 +1301,66 @@ Lists and Ranges:
       const responseText = response.text();
       console.log('📝 Raw Gemini response:', responseText);
 
-      // Try to extract JSON requests
-      const jsonMatch = responseText.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-      console.log('🔍 Found JSON match:', !!jsonMatch);
-      
-      if (jsonMatch) {
-        console.log('📋 Extracted JSON:', jsonMatch[0]);
-        try {
-          // Pre-process the JSON string to evaluate any expressions
-          const processedJson = jsonMatch[0].replace(
-            /:\s*(\d+)\s*\+\s*(\d+)/g,
-            (match, num1, num2) => `: ${parseInt(num1) + parseInt(num2)}`
-          );
-          
-          let requests = JSON.parse(processedJson);
-          console.log('✨ Parsed requests:', requests);
-
-          // Validate and fix request format
-          requests = requests.map((req: any) => {
-            console.log('🔄 Processing request:', req);
-            
-            // Handle replaceAllText
-            if (req.replaceAllText) {
-              return handleReplaceAllText(req, documentStructure);
-            }
-            
-            // Handle insertText
-            if (req.insertText) {
-              return handleInsertText(req, documentStructure);
-            }
-            
-            // Handle table operations
-            if (req.insertTable || req.deleteTable || req.insertTableRow || req.deleteTableRow || 
-                req.insertTableColumn || req.deleteTableColumn || req.mergeTableCells || 
-                req.unmergeTableCells || req.updateTableCellStyle || req.updateTableRowStyle ||
-                req.updateTableColumnProperties || req.updateTableAlignment) {
-              return handleTableOperation(req, documentStructure);
-            }
-            
-            // Handle list operations
-            if (req.createList || req.deleteList || req.updateList) {
-              return handleListOperation(req, documentStructure);
-            }
-            
-            // Handle style operations
-            if (req.updateTextStyle || req.updateParagraphStyle || req.updateTableCellStyle ||
-                req.updateTableRowStyle || req.createNamedStyle || req.updateNamedStyle) {
-              return handleStyleOperation(req, documentStructure);
-            }
-            
-            // Handle object operations
-            if (req.insertInlineImage || req.deletePositionedObject || req.deleteInlineObject ||
-                req.replaceImage || req.updateEmbeddedObjectBorder || req.updateImageProperties ||
-                req.updatePositionedObjectPositioning) {
-              return handleObjectOperation(req, documentStructure);
-            }
-            
-            // Handle break operations
-            if (req.insertPageBreak || req.insertSectionBreak || req.insertColumnBreak) {
-              return handleBreakOperation(req, documentStructure);
-            }
-            
-            // Handle suggestion operations
-            if (req.acceptAllSuggestions || req.rejectAllSuggestions || 
-                req.acceptSuggestionById || req.rejectSuggestionById) {
-              return handleSuggestionOperation(req);
-            }
-            
-            // Handle linked content operations
-            if (req.insertSheetsChart || req.updateSheetsChart) {
-              return handleLinkedContentOperation(req, documentStructure);
-            }
-            
-            // Handle equation operations
-            if (req.insertEquation || req.updateEquationStyle) {
-              return handleEquationOperation(req, documentStructure);
-            }
-            
-            // Handle person operations
-            if (req.insertPerson) {
-              return handlePersonOperation(req, documentStructure);
-            }
-            
-            // Handle autotext operations
-            if (req.insertAutoText) {
-              return handleAutoTextOperation(req, documentStructure);
-            }
-            
-            // Handle tab operations
-            if (req.createDocumentTab || req.deleteDocumentTab) {
-              return handleDocumentTabOperation(req);
-            }
-            
-            // Handle bookmark operations
-            if (req.insertBookmark || req.deleteBookmark) {
-              return handleBookmarkOperation(req, documentStructure);
-            }
-            
-            // Handle border operations
-            if (req.updateBorders) {
-              return handleBorderOperation(req, documentStructure);
-            }
-            
-            // Handle color operations
-            if (req.updateColor) {
-              return handleColorOperation(req, documentStructure);
-            }
-            
-            // Handle named range operations
-            if (req.createNamedRange || req.deleteNamedRange || req.updateNamedRanges) {
-              return handleNamedRangeOperation(req, documentStructure);
-            }
-
-            if (req.updateDocumentStyle) {
-              return handleDocumentStyleOperation(req, documentStructure);
-            }
-
-            if (req.updateSectionStyle) {
-              return handleSectionStyleOperation(req, documentStructure);
-            }
-
-            if (req.createFootnote || req.updateFootnoteStyle) {
-              return handleFootnoteOperation(req, documentStructure);
-            }
-
-            if (req.createHeader || req.createFooter) {
-              return handleHeaderFooterOperation(req, documentStructure);
-            }
-
-            return req;
-          });
-
-          // Filter out invalid requests
-          const originalLength = requests.length;
-          requests = requests.filter((req: any) => {
-            // Prevent dangerous global replacements
-            const dangerousPatterns = ['*', '.', '\\s+'];
-            const hasDangerousPattern = dangerousPatterns.some(pattern => 
-              req.replaceAllText?.containsText?.text === pattern
-            );
-            if (hasDangerousPattern) {
-              console.log('❌ Blocked dangerous global replacement pattern:', req.replaceAllText?.containsText?.text);
-              return false;
-            }
-
-            // Validate replaceAllText
-            if (req.replaceAllText) {
-              const searchText = req.replaceAllText.containsText?.text;
-              // Minimum length to prevent too broad replacements
-              if (searchText && searchText.length < 3) {
-                console.log('❌ Search text too short:', searchText);
-                return false;
-              }
-              
-              // Check if text exists in any paragraph content
-              const textExists = documentStructure.body.content.some(element => {
-                if (element.paragraph?.elements) {
-                  return element.paragraph.elements.some(el => 
-                    el.textRun?.content?.includes(searchText)
-                  );
-                }
-                return false;
-              });
-              
-              const isValid = (
-                searchText &&
-                typeof searchText === 'string' &&
-                req.replaceAllText.replaceText &&
-                typeof req.replaceAllText.replaceText === 'string' &&
-                textExists
-              );
-              if (!isValid) {
-                if (!textExists) {
-                  console.log('❌ Text not found in document:', searchText);
-                } else {
-                  console.log('❌ Invalid replaceAllText request:', req);
-                }
-              }
-              return isValid;
-            }
-
-            // Validate insertText
-            if (req.insertText) {
-              // Don't allow insertions at the very beginning of the document
-              if (req.insertText.location?.index <= 1) {
-                console.log('❌ Prevented insertion at document start');
-                return false;
-              }
-
-              const isValid = (
-                typeof req.insertText.location?.index === 'number' &&
-                req.insertText.text &&
-                typeof req.insertText.text === 'string' &&
-                !req.insertText.text.includes('expert billing assistant') && // Prevent system prompt insertion
-                req.insertText.text.trim().length > 0 // Prevent empty insertions
-              );
-              if (!isValid) {
-                if (req.insertText.text?.includes('expert billing assistant')) {
-                  console.log('❌ Prevented system prompt insertion');
-                } else if (!req.insertText.text?.trim()) {
-                  console.log('❌ Prevented empty text insertion');
-                } else {
-                  console.log('❌ Invalid insertText request:', req);
-                }
-              }
-              return isValid;
-            }
-
-            console.log('❌ Unknown request type:', req);
-            return false;
-          });
-          console.log(`🧹 Filtered requests: ${requests.length} valid out of ${originalLength} total`);
-          console.log('📤 Final requests to be sent:', requests);
-
-          // Apply the updates
-          console.log('🚀 Sending update request to Google Docs API...');
-          try {
-            // Prevent empty request arrays
-            if (!requests || requests.length === 0) {
-              console.log('⚠️ No valid requests to process');
-              return {
-                response: "I analyzed the document but couldn't find the exact text to modify. Please verify the text you want to change exists exactly as specified in the document.",
-                documentUpdated: false
-              };
-            }
-
-            await clientDocsService.updateDocument(documentId, requests);
-            console.log('✅ Successfully updated document');
-          } catch (error) {
-            console.error('❌ Failed to update document:', error);
-            if (error instanceof Error) {
-              console.error('Error details:', {
-                name: error.name,
-                message: error.message,
-                stack: error.stack
-              });
-            }
-            throw error;
-          }
-          
-          // Extract all sections after the JSON array
-          const sectionsMatch = responseText
-            .split(/\]\s*/)
-            .slice(1)
-            .join('')
-            .match(/✅ Changes Made:[\s\S]*?(?=🔍 Reason for Changes:)|\n🔍 Reason for Changes:[\s\S]*?(?=✓ To Verify:)|\n✓ To Verify:[\s\S]*/g);
-
-          if (sectionsMatch) {
-            const formattedResponse = sectionsMatch
-              .map(section => section.trim())
-              .join('\n\n');
-            return { 
-              response: formattedResponse,
-              documentUpdated: true 
-            };
-          }
-          
-          // Fallback if sections aren't properly formatted
-          return { 
-            response: '✅ Changes applied successfully\n\n' + responseText.split(/\]\s*/).slice(1).join('').trim(),
-            documentUpdated: true 
-          };
-        } catch (error) {
-          console.error('Error in JSON parsing:', error);
-          if (error instanceof Error) {
-            console.error('Error details:', {
-              name: error.name,
-              message: error.message,
-              stack: error.stack
-            });
-          }
-          throw error;
-        }
+      // Extract JSON array from response
+      const jsonMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (!jsonMatch) {
+        console.log('❌ No JSON array found in response');
+        return {
+          response: responseText.trim(),
+          documentUpdated: false
+        };
       }
 
+      const requests = JSON.parse(jsonMatch[0]);
+      console.log('📝 Parsed requests:', requests);
+
+      // Apply the updates
+      console.log('🚀 Sending update request to Google Docs API...');
+      try {
+        // Prevent empty request arrays
+        if (!requests || requests.length === 0) {
+          console.log('⚠️ No requests to process');
+          return {
+            response: "I analyzed the document but couldn't generate any update requests.",
+            documentUpdated: false
+          };
+        }
+
+        await clientDocsService.updateDocument(documentId, requests);
+        console.log('✅ Successfully updated document');
+      } catch (error) {
+        console.error('❌ Failed to update document:', error);
+        if (error instanceof Error) {
+          console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
+        }
+        throw error;
+      }
+      
+      // Extract all sections after the JSON array
+      const sectionsMatch = responseText
+        .split(/\]\s*/)
+        .slice(1)
+        .join('')
+        .match(/✅ Changes Made:[\s\S]*?(?=🔍 Reason for Changes:)|\n🔍 Reason for Changes:[\s\S]*?(?=✓ To Verify:)|\n✓ To Verify:[\s\S]*/g);
+
+      if (sectionsMatch) {
+        const formattedResponse = sectionsMatch
+          .map(section => section.trim())
+          .join('\n\n');
+        return { 
+          response: formattedResponse,
+          documentUpdated: true 
+        };
+      }
+      
+      // Fallback if sections aren't properly formatted
       return { 
-        response: responseText.trim(), 
-        documentUpdated: false 
+        response: '✅ Changes applied successfully\n\n' + responseText.split(/\]\s*/).slice(1).join('').trim(),
+        documentUpdated: true 
       };
     } catch (error) {
       console.error('Error in doc chat service:', error);
@@ -1543,470 +1375,3 @@ Lists and Ranges:
     }
   }
 }; 
-
-// Operation handler functions
-const handleReplaceAllText = (req: any, doc: any) => {
-  const searchText = req.replaceAllText?.containsText?.text;
-  if (!searchText || typeof searchText !== 'string' || searchText.length < 3) {
-    console.log('❌ Invalid search text:', searchText);
-    return null;
-  }
-  
-  // Check for dangerous patterns
-  const dangerousPatterns = ['*', '.', '\\s+'];
-  if (dangerousPatterns.some(pattern => searchText === pattern)) {
-    console.log('❌ Dangerous pattern detected:', searchText);
-    return null;
-  }
-  
-  // Validate text exists in document
-  const textExists = validateTextExists(searchText, doc);
-  if (!textExists) {
-    console.log('❌ Text not found in document:', searchText);
-    return null;
-  }
-  
-  return {
-    ...req,
-    replaceAllText: {
-      ...req.replaceAllText,
-      containsText: typeof req.replaceAllText.containsText === 'string' 
-        ? { text: req.replaceAllText.containsText }
-        : req.replaceAllText.containsText
-    }
-  };
-};
-
-const handleInsertText = (req: any, documentStructure: any) => {
-  if (req.insertText?.location?.index === 'END_OF_DOCUMENT') {
-    // If the user wants to insert at end, just pass the request as is
-    return req;
-  }
-
-  const docLength = getDocumentTextLength(documentStructure);
-  const requestedIndex = req.insertText?.location?.index;
-
-  if (typeof requestedIndex === 'number' && requestedIndex > docLength) {
-    console.log(
-      '🛑 Clamping insertText location from',
-      requestedIndex,
-      'to',
-      docLength
-    );
-    req.insertText.location.index = docLength;
-  }
-
-  return req;
-};
-
-const handleTableOperation = (req: any, doc: any) => {
-  // Validate table indices and existence
-  if ('tableStartLocation' in req) {
-    const isValidLocation = validateTableLocation(req.tableStartLocation, doc);
-    if (!isValidLocation) {
-      console.log('❌ Invalid table location:', req.tableStartLocation);
-      return null;
-    }
-  }
-  return req;
-};
-
-const handleListOperation = (req: any, doc: any) => {
-  // Validate list properties and existence
-  if ('listId' in req && !validateListExists(req.listId, doc)) {
-    console.log('❌ Invalid list ID:', req.listId);
-    return null;
-  }
-  return req;
-};
-
-const handleStyleOperation = (req: any, doc: any) => {
-  // Validate style properties
-  if (!validateStyleProperties(req)) {
-    console.log('❌ Invalid style properties:', req);
-    return null;
-  }
-  return req;
-};
-
-const handleObjectOperation = (req: any, doc: any) => {
-  // Validate object IDs and properties
-  if ('objectId' in req && !validateObjectExists(req.objectId, doc)) {
-    console.log('❌ Invalid object ID:', req.objectId);
-    return null;
-  }
-  return req;
-};
-
-const handleBreakOperation = (req: any, doc: any) => {
-  // Validate break location
-  if (!validateLocation(req.location, doc)) {
-    console.log('❌ Invalid break location:', req.location);
-    return null;
-  }
-  return req;
-};
-
-const handleSuggestionOperation = (req: any) => {
-  // Validate suggestion IDs
-  if ('suggestionId' in req && !validateSuggestionId(req.suggestionId)) {
-    console.log('❌ Invalid suggestion ID:', req.suggestionId);
-    return null;
-  }
-  return req;
-};
-
-const handleLinkedContentOperation = (req: any, doc: any) => {
-  // Validate linked content properties
-  if (!validateLinkedContent(req)) {
-    console.log('❌ Invalid linked content:', req);
-    return null;
-  }
-  return req;
-};
-
-const handleEquationOperation = (req: any, doc: any) => {
-  // Validate equation properties
-  if (!validateLocation(req.location, doc)) {
-    console.log('❌ Invalid equation location:', req.location);
-    return null;
-  }
-  return req;
-};
-
-const handlePersonOperation = (req: any, doc: any) => {
-  // Validate person properties
-  if (!validatePersonProperties(req.person)) {
-    console.log('❌ Invalid person properties:', req.person);
-    return null;
-  }
-  return req;
-};
-
-const handleAutoTextOperation = (req: any, doc: any) => {
-  // Validate autotext properties
-  if (!validateAutoTextType(req.type)) {
-    console.log('❌ Invalid autotext type:', req.type);
-    return null;
-  }
-  return req;
-};
-
-const handleDocumentTabOperation = (req: any) => {
-  // Validate tab properties
-  if (!validateTabProperties(req.tabProperties)) {
-    console.log('❌ Invalid tab properties:', req.tabProperties);
-    return null;
-  }
-  return req;
-};
-
-const handleBookmarkOperation = (req: any, doc: any) => {
-  // Validate bookmark properties
-  if ('bookmarkId' in req && !validateBookmarkExists(req.bookmarkId, doc)) {
-    console.log('❌ Invalid bookmark ID:', req.bookmarkId);
-    return null;
-  }
-  return req;
-};
-
-const handleBorderOperation = (req: any, doc: any) => {
-  // Validate border properties
-  if (!validateBorderProperties(req.borders)) {
-    console.log('❌ Invalid border properties:', req.borders);
-    return null;
-  }
-  return req;
-};
-
-const handleColorOperation = (req: any, doc: any) => {
-  // Validate color properties
-  if (!validateColorProperties(req.color)) {
-    console.log('❌ Invalid color properties:', req.color);
-    return null;
-  }
-  return req;
-};
-
-const handleNamedRangeOperation = (req: any, doc: any) => {
-  // Validate named range properties
-  if ('namedRangeId' in req && !validateNamedRangeExists(req.namedRangeId, doc)) {
-    console.log('❌ Invalid named range ID:', req.namedRangeId);
-    return null;
-  }
-  return req;
-};
-
-// Add new operation handlers
-const handleDocumentStyleOperation = (req: any, doc: any) => {
-  if (!validateDocumentStyle(req.documentStyle)) {
-    console.log('❌ Invalid document style:', req.documentStyle);
-    return null;
-  }
-  return req;
-};
-
-const handleSectionStyleOperation = (req: any, doc: any) => {
-  if (!validateSectionStyle(req.sectionStyle)) {
-    console.log('❌ Invalid section style:', req.sectionStyle);
-    return null;
-  }
-  return req;
-};
-
-const handleFootnoteOperation = (req: any, doc: any) => {
-  if (req.createFootnote && !validateLocation(req.location, doc)) {
-    console.log('❌ Invalid footnote location:', req.location);
-    return null;
-  }
-  return req;
-};
-
-const handleHeaderFooterOperation = (req: any, doc: any) => {
-  if (!validateHeaderFooterType(req.type)) {
-    console.log('❌ Invalid header/footer type:', req.type);
-    return null;
-  }
-
-  if (req.deleteHeader) {
-    const { headerId } = req.deleteHeader;
-    // Validate headerId
-    if (!doc.headers || !doc.headers[headerId]) {
-      console.log('❌ Invalid header ID:', headerId);
-      return null;
-    }
-    return req;
-  }
-
-  if (req.deleteFooter) {
-    const { footerId } = req.deleteFooter;
-    // Validate footerId
-    if (!doc.footers || !doc.footers[footerId]) {
-      console.log('❌ Invalid footer ID:', footerId);
-      return null;
-    }
-    return req;
-  }
-
-  return req;
-};
-
-// Update validation functions with proper checks
-const validateTextExists = (text: string, doc: any): boolean => {
-  return doc.body.content.some(element => {
-    if (element.paragraph?.elements) {
-      return element.paragraph.elements.some(el => 
-        el.textRun?.content?.includes(text)
-      );
-    }
-    return false;
-  });
-};
-
-const validateTableLocation = (location: any, doc: any): boolean => {
-  if (!location || typeof location.index !== 'number') return false;
-  return location.index >= 0 && location.index < doc.body.content.length;
-};
-
-const validateLocation = (location: any, doc: any): boolean => {
-  if (!location || typeof location.index !== 'number') return false;
-  return location.index >= 0 && location.index < doc.body.content.length;
-};
-
-const validateListExists = (listId: string, doc: any): boolean => {
-  return doc.lists && listId in doc.lists;
-};
-
-const validateStyleProperties = (req: any): boolean => {
-  if (!req) return false;
-  
-  // Validate text style properties
-  if (req.textStyle) {
-    const { fontSize, weightedFontFamily, baselineOffset } = req.textStyle;
-    if (fontSize && !validateDimension(fontSize)) return false;
-    if (weightedFontFamily && !validateWeightedFontFamily(weightedFontFamily)) return false;
-    if (baselineOffset && !['NONE', 'SUPERSCRIPT', 'SUBSCRIPT'].includes(baselineOffset)) return false;
-  }
-  
-  // Validate paragraph style properties
-  if (req.paragraphStyle) {
-    const { alignment, lineSpacing, direction } = req.paragraphStyle;
-    if (alignment && !['START', 'CENTER', 'END', 'JUSTIFIED'].includes(alignment)) return false;
-    if (lineSpacing && typeof lineSpacing !== 'number') return false;
-    if (direction && !['LEFT_TO_RIGHT', 'RIGHT_TO_LEFT'].includes(direction)) return false;
-  }
-  
-  return true;
-};
-
-const validateBorderProperties = (borders: any): boolean => {
-  if (!borders) return false;
-  
-  const validDashStyles = ['SOLID', 'DOT', 'DASH', 'DASH_DOT', 'LONG_DASH', 'LONG_DASH_DOT'];
-  const validWidthUnits = ['PT', 'MM', 'INCH'];
-  
-  for (const border of Object.values(borders)) {
-    const { dashStyle, width, padding } = border as any;
-    
-    if (dashStyle && !validDashStyles.includes(dashStyle)) return false;
-    if (width && (!width.magnitude || !validWidthUnits.includes(width.unit))) return false;
-    if (padding && (!padding.magnitude || !validWidthUnits.includes(padding.unit))) return false;
-  }
-  
-  return true;
-};
-
-const validateBookmarkExists = (bookmarkId: string, doc: any): boolean => {
-  return doc.body.content.some(element => {
-    if (element.paragraph?.elements) {
-      return element.paragraph.elements.some(el => 
-        el.textRun?.textStyle?.link?.bookmarkId === bookmarkId
-      );
-    }
-    return false;
-  });
-};
-
-const validateLinkedContent = (req: any): boolean => {
-  if (!req) return false;
-  
-  // Validate Sheets chart reference
-  if (req.sheetsChart) {
-    const { spreadsheetId, chartId } = req.sheetsChart;
-    if (!spreadsheetId || typeof spreadsheetId !== 'string') return false;
-    if (!chartId || typeof chartId !== 'number') return false;
-  }
-  
-  return true;
-};
-
-const validateDocumentStyle = (style: any): boolean => {
-  if (!style) return false;
-  
-  const { pageSize, marginTop, marginBottom, marginLeft, marginRight } = style;
-  
-  // Validate page size
-  if (pageSize && (!validateDimension(pageSize.width) || !validateDimension(pageSize.height))) {
-    return false;
-  }
-  
-  // Validate margins
-  const margins = [marginTop, marginBottom, marginLeft, marginRight];
-  if (margins.some(margin => margin && !validateDimension(margin))) {
-    return false;
-  }
-  
-  return true;
-};
-
-const validateSectionStyle = (style: any): boolean => {
-  if (!style) return false;
-  
-  const { columnProperties, columnSeparatorStyle } = style;
-  
-  // Validate column properties
-  if (columnProperties) {
-    for (const prop of columnProperties) {
-      if (!validateDimension(prop.width)) return false;
-      if (prop.paddingEnd && !validateDimension(prop.paddingEnd)) return false;
-    }
-  }
-  
-  // Validate separator style
-  if (columnSeparatorStyle && !['NONE', 'BETWEEN_EACH_COLUMN'].includes(columnSeparatorStyle)) {
-    return false;
-  }
-  
-  return true;
-};
-
-const validateHeaderFooterType = (type: string): boolean => {
-  return ['DEFAULT', 'FIRST_PAGE_HEADER', 'FIRST_PAGE_FOOTER'].includes(type);
-};
-
-const validateDimension = (dimension: any): boolean => {
-  return dimension && 
-         typeof dimension.magnitude === 'number' && 
-         ['PT', 'MM', 'INCH'].includes(dimension.unit);
-};
-
-const validateWeightedFontFamily = (font: any): boolean => {
-  return font && 
-         typeof font.fontFamily === 'string' && 
-         typeof font.weight === 'number' &&
-         font.weight >= 100 && 
-         font.weight <= 900 && 
-         font.weight % 100 === 0;
-};
-
-const validateSuggestionId = (suggestionId: string): boolean => {
-  return typeof suggestionId === 'string' && suggestionId.length > 0;
-};
-
-const validateColorProperties = (color: any): boolean => {
-  return color && (color.rgbColor || color.themeColor);
-};
-
-const validateNamedRangeExists = (namedRangeId: string, doc: any): boolean => {
-  return doc.namedRanges && namedRangeId in doc.namedRanges;
-};
-
-const validateObjectExists = (objectId: string, doc: any): boolean => {
-  return (
-    (doc.inlineObjects && objectId in doc.inlineObjects) ||
-    (doc.positionedObjects && objectId in doc.positionedObjects)
-  );
-};
-
-const validatePersonProperties = (person: any): boolean => {
-  return person && person.personProperties && 
-    (person.personProperties.email || person.personProperties.name);
-};
-
-const validateAutoTextType = (type: string): boolean => {
-  const validTypes = [
-    'UNKNOWN', 'DATE', 'TIME', 'PAGE_NUMBER', 
-    'PAGE_COUNT', 'DOCUMENT_TITLE'
-  ];
-  return validTypes.includes(type);
-};
-
-const validateTabProperties = (props: any): boolean => {
-  return props && props.tabId && props.tabName;
-};
-
-function handleTabOperation(req: any) {
-  // existing checks...
-
-  if (req.deleteTabStop) {
-    const { range, tabStopIndex } = req.deleteTabStop;
-    // Validate range and tabStopIndex
-    if (!range || typeof tabStopIndex !== 'number') {
-      console.log('❌ Invalid deleteTabStop request:', req.deleteTabStop);
-      return null;
-    }
-    // Additional logic/validations here
-    return req;
-  }
-
-  return req;
-}
-
-function getDocumentTextLength(documentStructure: any): number {
-  let total = 0;
-  if (!documentStructure?.body?.content) return total;
-
-  for (const element of documentStructure.body.content) {
-    if (element.paragraph?.elements) {
-      for (const el of element.paragraph.elements) {
-        if (el.textRun?.content) {
-          total += el.textRun.content.length;
-        }
-      }
-    }
-  }
-
-  return total;
-}
-
-// ... rest of the file remains unchanged ... 
