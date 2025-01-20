@@ -64,14 +64,18 @@ export default function NavBar() {
 
   const handleTestApi = async () => {
     try {
-      console.log('🚀 Starting Gemini API test...');
-      const response = await fetch('/api/test-gemini');
+      console.log('🚀 Starting Google Drive API test...');
+      const response = await fetch('/api/test-googleapi');
       console.log('📨 Response status:', response.status);
       
       const data = await response.json();
       console.log('✅ API Response:', data);
       
-      alert(data.response);
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      alert(`${data.message}\nFound ${data.fileCount} files.\nFirst file: ${data.firstFile?.name || 'None'}`);
     } catch (error) {
       console.error('❌ Test API failed:', error);
       if (error instanceof Error) {
