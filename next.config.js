@@ -6,26 +6,7 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     // Disable automatic static optimization
-    isrMemoryCacheSize: 0,
-    // Explicitly configure tracing
-    outputFileTracingRoot: join(__dirname),
-    outputFileTracingExcludes: {
-      '*': [
-        'node_modules/@swc/core-linux-x64-gnu',
-        'node_modules/@swc/core-linux-x64-musl',
-        'node_modules/@esbuild/linux-x64',
-        '**/node_modules/canvas/**',
-        '**/node_modules/jsdom/**',
-        'captures/**',
-        'recordings/**',
-        '.next/**',
-        'dist/**',
-      ],
-    },
-    // Only include necessary files
-    outputFileTracingIncludes: {
-      '/': ['package.json'],
-    },
+    isrMemoryCacheSize: 0
   },
   // Add more specific webpack configuration
   webpack: (config, { isServer }) => {
