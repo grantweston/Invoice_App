@@ -89,6 +89,18 @@ export default function NavBar() {
     }
   };
 
+  const handleBasicTest = async () => {
+    try {
+      console.log('🚀 Starting basic API test...');
+      const response = await fetch('/api/test-basic');
+      console.log('📨 Response status:', response.status);
+      const data = await response.json();
+      console.log('✅ API Response:', data);
+    } catch (error) {
+      console.error('❌ Basic test failed:', error);
+    }
+  };
+
   // Helper function to get time in minutes
   const getTimeInMinutes = (entry: StoreWIPEntry | WIPEntry): number => {
     return entry.timeInMinutes || 0;
@@ -315,6 +327,12 @@ export default function NavBar() {
               className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105"
             >
               Test API
+            </button>
+            <button
+              onClick={handleBasicTest}
+              className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium text-xs transition-all duration-200 hover:scale-105 ml-2"
+            >
+              Basic Test
             </button>
             <ThemeToggle />
             <button 
