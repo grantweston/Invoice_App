@@ -18,13 +18,20 @@ export async function GET() {
     // Initialize auth client
     console.log('🔐 Initializing auth client...');
     try {
-      const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      // Process private key more carefully
+      const rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
+      const keyParts = rawKey.split('\\n');
+      const privateKey = keyParts.join('\n');
+      
       console.log('📝 Private key format:', {
-        originalLength: process.env.GOOGLE_PRIVATE_KEY?.length,
-        processedLength: privateKey?.length,
-        startsWithHeader: privateKey?.startsWith('-----BEGIN PRIVATE KEY-----'),
-        endsWithFooter: privateKey?.endsWith('-----END PRIVATE KEY-----'),
-        newlineCount: privateKey?.split('\n').length
+        originalLength: rawKey.length,
+        processedLength: privateKey.length,
+        partsCount: keyParts.length,
+        startsWithHeader: privateKey.startsWith('-----BEGIN PRIVATE KEY-----'),
+        endsWithFooter: privateKey.endsWith('-----END PRIVATE KEY-----'),
+        newlineCount: privateKey.split('\n').length,
+        firstPart: keyParts[0],
+        lastPart: keyParts[keyParts.length - 1]
       });
       
       const auth = new JWT({
