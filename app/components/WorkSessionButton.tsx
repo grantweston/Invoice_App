@@ -36,10 +36,10 @@ export default function WorkSessionButton({ onStart, onEnd }: WorkSessionButtonP
         transition-all duration-500 ease-in-out
         flex items-center gap-2 group shadow-lg
         ${isRecording 
-          ? 'bg-gradient-to-r from-red-500/30 to-red-600/30 hover:from-red-500/40 hover:to-red-600/40 text-red-300 border border-red-500/30 hover:border-red-500/40' 
+          ? 'bg-red-500/30 hover:bg-red-500/40 text-red-300 border border-red-500/30 hover:border-red-500/40' 
           : isPending
-            ? 'bg-gradient-to-r from-gray-500/30 to-gray-600/30 text-gray-300 border border-gray-500/30'
-            : 'bg-gradient-to-r from-blue-500/30 to-blue-600/30 hover:from-blue-500/40 hover:to-blue-600/40 text-blue-300 border border-blue-500/30 hover:border-blue-500/40'}
+            ? 'bg-gray-500/30 text-gray-300 border border-gray-500/30'
+            : 'bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/40'}
         hover:scale-105
         ${isPending ? 'cursor-wait' : 'cursor-pointer'}
       `}

@@ -2,14 +2,16 @@ import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 import { templateService } from './templateService';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import fs from 'fs';
+import path from 'path';
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({ 
   model: "gemini-2.0-flash-exp",
   generationConfig: {
-    temperature: 0.1,  // More precise outputs
-    topP: 0.1         // More focused on likely completions
+    temperature: 0.1,
+    topP: 0.1
   }
 });
 console.log('🤖 Initialized Gemini 2.0 flash-exp model');
@@ -71,11 +73,54 @@ interface AnalyzedInvoiceData {
 }
 
 export const invoiceService = {
+  async analyzeSampleInvoice(): Promise<string> {
+    try {
+      console.log('🔍 Reading local sample invoice...');
+      
+      const samplePath = path.join(process.cwd(), 'src/assets/samples/Invoice-BBMG.pdf');
+      const fileBuffer = fs.readFileSync(samplePath);
+      const base64PDF = fileBuffer.toString('base64');
+      
+      const invoiceAnalysisPrompt = `You are a billing specialist analyzing an invoice PDF.
+Please analyze this invoice's:
+1. Visual layout and formatting
+2. Section organization
+3. How line items are structured
+4. How totals are presented
+5. Overall professional presentation
+
+Return your analysis in a structured JSON format that we can use as a template for generating future invoices.
+Include specific details about positioning, formatting, and styling.`;
+
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            data: base64PDF,
+            mimeType: "application/pdf"
+          }
+        },
+        { text: invoiceAnalysisPrompt }
+      ]);
+      
+      console.log('✅ Sample invoice analysis complete');
+      return result.response.text();
+      
+    } catch (error) {
+      console.error('❌ Error analyzing sample invoice:', error);
+      throw error;
+    }
+  },
+
   async generateInvoice(data: InvoiceData): Promise<string> {
     try {
       console.log('📄 Starting invoice generation for client:', data.client);
       
-      // First pass: Analyze the logs
+      // First: Analyze the sample invoice for formatting
+      console.log('🎯 Analyzing sample invoice format...');
+      const sampleAnalysis = await this.analyzeSampleInvoice();
+      console.log('✅ Sample analysis complete');
+      
+      // Second: Analyze the logs
       console.log('🧠 Analyzing work logs...');
       const analyzedData = await this.analyzeLogEntries(data.entries);
       console.log('✅ Log analysis complete');
@@ -130,6 +175,9 @@ export const invoiceService = {
       // Send document directly to Gemini for analysis
       const documentEditPrompt = `You are a billing expert at a prestigious consulting firm. Your task is to edit a Google Doc invoice template using the Google Docs API.
 
+SAMPLE INVOICE ANALYSIS:
+${sampleAnalysis}
+
 CONTEXT:
 - Client: ${data.client}
 - Period: ${analyzedData.summary.periodStart} to ${analyzedData.summary.periodEnd}
@@ -141,10 +189,11 @@ DETAILED BREAKDOWN:
 ${JSON.stringify(analyzedData.categories, null, 2)}
 
 YOUR TASK:
-1. Analyze the document structure provided below
-2. Generate a JSON array of Google Docs API requests to update the document
-3. Return ONLY the JSON array, no other text
-4. IMPORTANT: Do not generate empty replacements - skip any fields you don't have values for
+1. Format this invoice to match the style and layout of our sample invoice
+2. Analyze the document structure provided below
+3. Generate a JSON array of Google Docs API requests to update the document
+4. Return ONLY the JSON array, no other text
+5. IMPORTANT: Do not generate empty replacements - skip any fields you don't have values for
 
 REQUIRED FORMAT:
 [
@@ -157,6 +206,7 @@ REQUIRED FORMAT:
 ]
 
 RULES:
+- Match the formatting and style of the sample invoice
 - Only include replacements where you have actual content to insert
 - Skip any placeholders where you don't have a value
 - Never use empty strings as replacement text

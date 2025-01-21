@@ -1103,14 +1103,8 @@ RESPONSE FORMAT:
   }
 ]
 
-✅ Changes Made:
-[Describe the changes you made]
+Describe the changes you made
 
-🔍 Reason for Changes:
-[Explain why these changes improve the document]
-
-✓ To Verify:
-[List specific changes and their locations]
 
 Remember: You MUST start with the JSON array of edit requests, followed by your explanation.`;
 
@@ -1361,10 +1355,12 @@ Lists and Ranges:
         .split(/\]\s*/)
         .slice(1)
         .join('')
-        .match(/✅ Changes Made:[\s\S]*?(?=🔍 Reason for Changes:)|\n🔍 Reason for Changes:[\s\S]*?(?=✓ To Verify:)|\n✓ To Verify:[\s\S]*/g);
+        .trim()
+        .replace(/```/g, ''); // Remove any code block markers
 
-      if (sectionsMatch) {
+      if (sectionsMatch.match(/✅ Changes Made:|🔍 Reason for Changes:|✓ To Verify:/)) {
         const formattedResponse = sectionsMatch
+          .split(/(?=✅ Changes Made:|🔍 Reason for Changes:|✓ To Verify:)/)
           .map(section => section.trim())
           .join('\n\n');
         return { 
@@ -1375,7 +1371,7 @@ Lists and Ranges:
       
       // Fallback if sections aren't properly formatted
       return { 
-        response: '✅ Changes applied successfully\n\n' + responseText.split(/\]\s*/).slice(1).join('').trim(),
+        response: sectionsMatch,
         documentUpdated: true 
       };
     } catch (error) {
