@@ -52,11 +52,16 @@ export default function NavBar() {
 
   const handleStartDemo = async () => {
     if (window.confirm('This will clear all existing data. Are you sure you want to load demo data?')) {
-      const success = await demoDataService.loadDemoData();
-      if (success) {
-        alert('Demo data loaded successfully!');
-        window.location.reload();
-      } else {
+      try {
+        const success = await demoDataService.loadDemoData();
+        if (success) {
+          alert('Demo data loaded successfully!');
+          window.location.reload();
+        } else {
+          alert('Failed to load demo data. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error loading demo data:', error);
         alert('Failed to load demo data. Please try again.');
       }
     }
@@ -249,20 +254,20 @@ export default function NavBar() {
                   WIP Report
                 </div>
               </Link>
-              <Link href="/templates">
-                <div className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium text-xs
-                  ${isActivePath('/templates') 
-                    ? 'bg-white/30 shadow-lg scale-105 border border-white/30' 
-                    : 'hover:bg-white/20 hover:scale-105'}`}>
-                  Templates
-                </div>
-              </Link>
               <Link href="/invoices">
                 <div className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium text-xs
                   ${isActivePath('/invoices') 
                     ? 'bg-white/30 shadow-lg scale-105 border border-white/30' 
                     : 'hover:bg-white/20 hover:scale-105'}`}>
                   Invoices
+                </div>
+              </Link>
+              <Link href="/archive">
+                <div className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium text-xs
+                  ${isActivePath('/archive') 
+                    ? 'bg-white/30 shadow-lg scale-105 border border-white/30' 
+                    : 'hover:bg-white/20 hover:scale-105'}`}>
+                  Archive
                 </div>
               </Link>
             </div>
@@ -315,15 +320,6 @@ export default function NavBar() {
               <span className="text-xs mt-1 font-medium">WIP Report</span>
             </div>
           </Link>
-          <Link href="/templates">
-            <div className={`flex flex-col items-center p-2 rounded-lg transition-all duration-200
-              ${isActivePath('/templates') ? 'bg-white/20 scale-105' : 'hover:bg-white/10'}`}>
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-              </svg>
-              <span className="text-xs mt-1 font-medium">Templates</span>
-            </div>
-          </Link>
           <Link href="/invoices">
             <div className={`flex flex-col items-center p-2 rounded-lg transition-all duration-200
               ${isActivePath('/invoices') ? 'bg-white/20 scale-105' : 'hover:bg-white/10'}`}>
@@ -331,6 +327,15 @@ export default function NavBar() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <span className="text-xs mt-1 font-medium">Invoices</span>
+            </div>
+          </Link>
+          <Link href="/archive">
+            <div className={`flex flex-col items-center p-2 rounded-lg transition-all duration-200
+              ${isActivePath('/archive') ? 'bg-white/20 scale-105' : 'hover:bg-white/10'}`}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              <span className="text-xs mt-1 font-medium">Archive</span>
             </div>
           </Link>
         </div>

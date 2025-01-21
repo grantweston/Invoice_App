@@ -200,8 +200,25 @@ export default function TemplateManager() {
         <div>
           <h3 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Available Templates</h3>
           {isLoading ? (
-            <div className="text-xs text-gray-500 dark:text-gray-400 animate-pulse">
-              Loading templates...
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 backdrop-blur-sm rounded-lg
+                    border border-gray-200 dark:border-gray-600 animate-pulse"
+                >
+                  <div className="space-y-2">
+                    <div className="h-4 w-48 bg-gray-200 dark:bg-gray-600 rounded" />
+                    <div className="h-3 w-32 bg-gray-200 dark:bg-gray-600 rounded" />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="h-[30px] w-16 bg-gray-200 dark:bg-gray-600 rounded-lg" />
+                    <div className="h-[30px] w-24 bg-gray-200 dark:bg-gray-600 rounded-lg" />
+                    <div className="h-[30px] w-8 bg-gray-200 dark:bg-gray-600 rounded-lg" />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 dark:via-white/10 to-transparent -translate-x-full animate-shimmer" />
+                </div>
+              ))}
             </div>
           ) : templates.length > 0 ? (
             <div className="space-y-3">

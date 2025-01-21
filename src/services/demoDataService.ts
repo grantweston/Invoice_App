@@ -1,5 +1,4 @@
-import type { WIPEntry as DailyWIPEntry } from "@/src/types";
-import type { WIPEntry as StoreWIPEntry } from "@/src/store/wipStore";
+import type { WIPEntry } from "@/src/types";
 import { useDailyLogs } from "@/src/store/dailyLogs";
 import { useWIPStore } from "@/src/store/wipStore";
 
@@ -35,34 +34,40 @@ export const demoDataService = {
   loadDemoData: async () => {
     try {
       // Clear existing data
-      useWIPStore.getState().clearEntries();
+      useWIPStore.getState().clear();
       useDailyLogs.getState().clearLogs();
 
       // Create WIP entries first
-      const taxPrepWIP: StoreWIPEntry = {
-        id: Date.now().toString(),
+      const taxPrepWIP: WIPEntry = {
+        id: Date.now(),
         client: "Johnson & Associates",
         project: "Tax Return Preparation",
         timeInMinutes: 3,
         partner: "Alex",
         hourlyRate: 150,
         description: TAX_PREP_DESCRIPTIONS.join('\n'),
-        associatedDailyIds: []
+        associatedDailyIds: [],
+        subEntries: [],
+        startDate: Date.now(),
+        lastWorkedDate: Date.now()
       };
 
-      const taxResearchWIP: StoreWIPEntry = {
-        id: (Date.now() + 1).toString(),
+      const taxResearchWIP: WIPEntry = {
+        id: Date.now() + 1,
         client: "Smith & Co Tax Advisors",
         project: "Tax Law Research",
         timeInMinutes: 7,
         partner: "Alex",
         hourlyRate: 200,
         description: TAX_RESEARCH_DESCRIPTIONS.join('\n'),
-        associatedDailyIds: []
+        associatedDailyIds: [],
+        subEntries: [],
+        startDate: Date.now(),
+        lastWorkedDate: Date.now()
       };
 
       // Add WIP entries
-      await useWIPStore.getState().setEntries([taxPrepWIP, taxResearchWIP]);
+      useWIPStore.getState().addEntries([taxPrepWIP, taxResearchWIP]);
 
       // Create an array of timestamps, one minute apart
       const now = new Date();
@@ -75,7 +80,7 @@ export const demoDataService = {
       });
 
       // Create daily entries with sequential timestamps
-      const dailyEntries: DailyWIPEntry[] = [
+      const dailyEntries: WIPEntry[] = [
         // Tax Prep Entries - first 3 timestamps
         ...TAX_PREP_DESCRIPTIONS.map((desc, i) => ({
           id: Date.now() + i + 2,

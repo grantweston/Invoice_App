@@ -18,6 +18,9 @@ const drive = google.drive({ version: 'v3', auth });
 const TEMPLATES_FOLDER_NAME = 'Invoice Templates';
 const INVOICES_FOLDER_NAME = 'Invoices';
 
+// Add cache at the top of the file
+let templatesFolderIdCache: string | null = null;
+
 export interface Template {
   id: string;
   name: string;
@@ -217,47 +220,60 @@ export const templateService = {
 
   async listTemplates(): Promise<Template[]> {
     try {
-      // Get templates folder ID from cache if possible
-      let templatesFolderId = await drive.files.list({
-        q: `mimeType='application/vnd.google-apps.folder' and name='${TEMPLATES_FOLDER_NAME}' and trashed=false`,
-        fields: 'files(id)',
-        pageSize: 1
-      }).then(res => res.data.files?.[0]?.id);
+      // Use cached folder ID if available
+      if (!templatesFolderIdCache) {
+        templatesFolderIdCache = await drive.files.list({
+          q: `mimeType='application/vnd.google-apps.folder' and name='${TEMPLATES_FOLDER_NAME}' and trashed=false`,
+          fields: 'files(id)',
+          pageSize: 1
+        }).then(res => res.data.files?.[0]?.id || null);
 
-      if (!templatesFolderId) {
-        // Only create if doesn't exist
-        const folder = await this.createFolder(TEMPLATES_FOLDER_NAME);
-        templatesFolderId = folder.id!;
+        if (!templatesFolderIdCache) {
+          const folder = await this.createFolder(TEMPLATES_FOLDER_NAME);
+          templatesFolderIdCache = folder.id!;
+        }
       }
-      
-      // Get all files in one query with all needed fields
-      const response = await drive.files.list({
-        q: `'${templatesFolderId}' in parents and trashed=false`,
-        fields: 'files(id, name, mimeType, createdTime, webViewLink, description)',
-        orderBy: 'createdTime desc',
-        pageSize: 100 // Limit to reasonable number
-      });
 
-      const files = response.data.files || [];
-      
-      // Get metadata in parallel with file listing
-      const [serverMetadata, clientMetadata] = await Promise.all([
+      // Load everything in parallel
+      const [serverMetadata, clientMetadata, filesResponse] = await Promise.all([
         templateMetadataService.getMetadata(),
-        Promise.resolve(typeof window !== 'undefined' ? useTemplateStore.getState().templateMetadata : {})
+        Promise.resolve(typeof window !== 'undefined' ? useTemplateStore.getState().templateMetadata : {}),
+        drive.files.list({
+          q: `'${templatesFolderIdCache}' in parents and trashed=false`,
+          fields: 'files(id, name, webViewLink)',  // Reduced fields
+          orderBy: 'createdTime desc',
+          pageSize: 100
+        })
       ]);
+
+      const files = filesResponse.data.files || [];
       
       // Map files to templates with metadata
-      return files.map(file => ({
+      const templates = files.map(file => ({
         id: file.id!,
         name: file.name!,
-        mimeType: file.mimeType!,
-        createdTime: file.createdTime!,
+        mimeType: 'application/vnd.google-apps.document', // Default since we convert all files
+        createdTime: new Date().toISOString(), // Not critical for display
         webViewLink: file.webViewLink!,
         googleDocId: (clientMetadata[file.id!] || serverMetadata[file.id!])?.googleDocId
       }));
 
+      // Cache the results in the store if we're on the client
+      if (typeof window !== 'undefined') {
+        useTemplateStore.getState().setTemplates(templates);
+      }
+
+      return templates;
     } catch (error) {
       console.error('Error listing templates:', error);
+      
+      // On error, try to return cached templates if available
+      if (typeof window !== 'undefined') {
+        const cachedTemplates = useTemplateStore.getState().templates;
+        if (cachedTemplates.length > 0) {
+          return cachedTemplates;
+        }
+      }
       throw error;
     }
   },
