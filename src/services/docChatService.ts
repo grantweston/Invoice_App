@@ -1078,6 +1078,7 @@ DOCUMENT LAYOUT GUIDE:
 
 7. Extra Layout Notes:
    - Any insertions requested to be "at the end" or "on Page 2" should be made at the bottom of the document below the Payment Instructions section.
+   - If you add a list make sure to start it on a new line.
 
 
 RESPONSE FORMAT:
