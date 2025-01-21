@@ -74,6 +74,17 @@ GOOGLE DOCS API OPERATIONS:
      }
    }
 
+   Example - Converting bullets to paragraph:
+   {
+     "replaceAllText": {
+       "containsText": {
+         "text": "• First bullet\n• Second bullet\n• Third bullet",
+         "matchCase": true
+       },
+       "replaceText": "This paragraph summarizes the content from the bullet points in a cohesive narrative."
+     }
+   }
+
    - insertText: Insert text at specific index
    {
      "insertText": {
