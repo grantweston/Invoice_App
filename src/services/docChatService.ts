@@ -1079,6 +1079,10 @@ DOCUMENT LAYOUT GUIDE:
 7. Extra Layout Notes:
    - Any insertions requested to be "at the end" or "on Page 2" should be made at the bottom of the document below the Payment Instructions section.
    - If you add a list make sure to start it on a new line.
+   - If you change items in a list make sure to start it on a new line.
+   - If you are asked to modify bullets, consider that they may be asking for the content of the list to be modified and not bullet points themselves. Do not modify the bullet type, just the content.
+   - DO NOT CHANGE THE BULLET TYPE, JUST THE CONTENT. DO NOT CHANGE BULLETS TO A NUMBERED LIST UNLESS EXPLICITLY TOLD TO DO SO.
+   - If you are asked to make text less/more formal, change the content of the text, to match the requested tone. DO NOT CHANGE THE STYLE OF THE TEXT, OR THE WORLD WILL END AND EXPLODE!!!! THIS INCLUDES STRIKETHROUGH, UNDERLINE, SMALL CAPS, ETC.
 
 
 RESPONSE FORMAT:
