@@ -11,7 +11,7 @@ import { useRecordingState } from '@/src/store/recordingState';
 import { ClientScreenRecorder } from '@/src/services/clientScreenRecorder';
 import WorkSessionButton from './WorkSessionButton';
 import { useDailyLogs } from "@/src/store/dailyLogs";
-import { useWIPStore, WIPEntry as StoreWIPEntry } from "@/src/store/wipStore";
+import { useWIPStore } from "@/src/store/wipStore";
 import type { WIPEntry } from "@/src/types";
 import type { ScreenAnalysis } from '@/src/services/screenAnalysisService';
 
@@ -25,7 +25,6 @@ export default function NavBar() {
   const { theme, setTheme } = useTheme();
   const addDailyLog = useDailyLogs((state) => state.addLog);
   const wipEntries = useWIPStore((state) => state.entries);
-  const setWipEntries = useWIPStore((state) => state.setEntries);
 
   useEffect(() => {
     if (isSettingsOpen) {
@@ -53,6 +52,10 @@ export default function NavBar() {
   const handleStartDemo = async () => {
     if (window.confirm('This will clear all existing data. Are you sure you want to load demo data?')) {
       try {
+        // Clear localStorage first
+        localStorage.removeItem('wip-storage');
+        localStorage.removeItem('daily-logs-storage');
+        
         const success = await demoDataService.loadDemoData();
         if (success) {
           alert('Demo data loaded successfully!');
@@ -68,35 +71,40 @@ export default function NavBar() {
   };
 
   // Helper function to get time in minutes
-  const getTimeInMinutes = (entry: StoreWIPEntry | WIPEntry): number => {
+  const getTimeInMinutes = (entry: WIPEntry): number => {
     return entry.timeInMinutes || 0;
   };
 
   // Helper function to convert store WIPEntry to types WIPEntry
-  const convertToTypesWIPEntry = (entry: StoreWIPEntry): WIPEntry => ({
-    id: parseInt(entry.id),
-    client: entry.client,
-    project: entry.project,
-    timeInMinutes: entry.timeInMinutes,
-    description: entry.description,
-    partner: entry.partner,
-    hourlyRate: entry.hourlyRate,
-    associatedDailyIds: entry.associatedDailyIds.map(id => parseInt(id)),
-    subEntries: [],
-    startDate: Date.now(),
-    lastWorkedDate: Date.now()
-  });
-
-  // Helper function to convert types WIPEntry to store WIPEntry
-  const convertToStoreWIPEntry = (entry: WIPEntry): StoreWIPEntry => ({
-    id: entry.id.toString(),
+  const convertToTypesWIPEntry = (entry: WIPEntry): WIPEntry => ({
+    id: typeof entry.id === 'string' ? parseInt(entry.id) : entry.id,
     client: entry.client,
     project: entry.project,
     timeInMinutes: entry.timeInMinutes || 0,
     description: entry.description,
     partner: entry.partner,
     hourlyRate: entry.hourlyRate,
-    associatedDailyIds: entry.associatedDailyIds.map(id => id.toString())
+    associatedDailyIds: entry.associatedDailyIds.map(id => 
+      typeof id === 'string' ? parseInt(id) : id
+    ),
+    subEntries: [],
+    startDate: Date.now(),
+    lastWorkedDate: Date.now()
+  });
+
+  // Helper function to convert types WIPEntry to store WIPEntry
+  const convertToStoreWIPEntry = (entry: WIPEntry): WIPEntry => ({
+    id: entry.id,
+    client: entry.client,
+    project: entry.project,
+    timeInMinutes: entry.timeInMinutes || 0,
+    description: entry.description,
+    partner: entry.partner,
+    hourlyRate: entry.hourlyRate,
+    associatedDailyIds: entry.associatedDailyIds,
+    subEntries: entry.subEntries || [],
+    startDate: entry.startDate || Date.now(),
+    lastWorkedDate: entry.lastWorkedDate || Date.now()
   });
 
   // Helper function to check name similarity
@@ -142,7 +150,7 @@ export default function NavBar() {
         },
         body: JSON.stringify({ 
           screenshots,
-          currentTasks: wipEntries.map(convertToTypesWIPEntry)
+          currentTasks: wipEntries.map(entry => convertToTypesWIPEntry(entry))
         })
       });
 
@@ -167,7 +175,7 @@ export default function NavBar() {
           hours: 1/60,
           partner: partner,
           hourlyRate: rate,
-          description: analysis.detailed_description || analysis.activity_description || 'No description available',
+          description: analysis.detailed_description || 'No description available',
           associatedDailyIds: [],
           subEntries: [],
           startDate: Date.now(),
@@ -189,33 +197,27 @@ export default function NavBar() {
 
         if (matchingEntry) {
           // Update existing WIP entry
-          const updatedEntry: StoreWIPEntry = {
+          const updatedEntry: WIPEntry = {
             ...matchingEntry,
             client: matchingEntry.client === "Unknown" && analysis.client_name !== "Unknown" 
               ? analysis.client_name 
               : matchingEntry.client,
             timeInMinutes: getTimeInMinutes(matchingEntry) + 1,
             description: mergeDescriptions(matchingEntry.description, analysis.activity_description || ''),
-            associatedDailyIds: [...(matchingEntry.associatedDailyIds || []), dailyEntry.id.toString()]
+            associatedDailyIds: [...matchingEntry.associatedDailyIds, dailyEntry.id],
+            lastWorkedDate: Date.now()
           };
           
-          setWipEntries(wipEntries.map(entry => 
-            entry.id === matchingEntry.id ? updatedEntry : entry
-          ));
+          // Update existing WIP entry using store method
+          useWIPStore.getState().updateEntry(matchingEntry.id, updatedEntry);
         } else {
-          // Create new WIP entry
-          const newEntry: StoreWIPEntry = {
-            id: Date.now().toString(),
-            client: analysis.client_name,
-            project: analysis.project_name,
-            timeInMinutes: 1,
-            partner: partner,
-            hourlyRate: rate,
-            description: analysis.detailed_description || analysis.activity_description || 'No description available',
-            associatedDailyIds: [dailyEntry.id.toString()]
+          // Create new WIP entry if no match found
+          const newWIPEntry: WIPEntry = {
+            ...dailyEntry,
+            associatedDailyIds: [dailyEntry.id]
           };
-          
-          setWipEntries([...wipEntries, newEntry]);
+          // Add new WIP entry using store method
+          useWIPStore.getState().addEntry(newWIPEntry);
         }
       }
     } catch (error) {
