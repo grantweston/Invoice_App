@@ -6,6 +6,9 @@
     },
     "app/api/invoices/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/analyze-screen/route.ts": {
+      "maxDuration": 60
     }
   },
   "headers": [
