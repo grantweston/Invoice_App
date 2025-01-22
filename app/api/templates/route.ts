@@ -24,11 +24,28 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate file type
-    if (!file.type.includes('document')) {
+    // Enhanced file type validation
+    const allowedTypes = [
+      'application/msword',                                                    // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.google-apps.document',                                  // Google Doc
+      'application/pdf'                                                        // PDF
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
       console.log('Invalid file type:', file.type);
       return NextResponse.json(
-        { error: 'Invalid file type. Please upload a document file.' },
+        { error: `Invalid file type: ${file.type}. Please upload a .doc, .docx, Google Doc, or PDF file.` },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size (e.g., max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      console.log('File too large:', file.size);
+      return NextResponse.json(
+        { error: 'File too large. Maximum size is 10MB.' },
         { status: 400 }
       );
     }
