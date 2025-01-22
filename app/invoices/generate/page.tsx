@@ -181,7 +181,7 @@ export default function GenerateInvoicePage() {
                       : 'hover:bg-blue-200 dark:hover:bg-blue-500/50 hover:border-blue-400 dark:hover:border-blue-500/50 hover:scale-105'
                   } bg-blue-100 dark:bg-blue-500/40
                     text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-500/40 
-                    px-4 py-1.5 rounded text-xs h-[38px] flex items-center gap-1.5 transition-all duration-150 shadow-lg`}
+                    px-4 py-1.5 rounded-lg text-xs h-[38px] flex items-center gap-1.5 transition-all duration-150 shadow-lg`}
                 >
                   {generatingInvoices[clientName] ? (
                     <>

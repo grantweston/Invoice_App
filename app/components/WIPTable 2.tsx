@@ -257,7 +257,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
               <td className="p-3 align-top">
                 <button
                   onClick={() => onDelete(entry)}
-                  className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 
+                  className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 
                     hover:bg-red-200 dark:hover:bg-red-900/50 hover:text-red-800 dark:hover:text-red-300 transition-all duration-150"
                   title="Delete entry"
                 >

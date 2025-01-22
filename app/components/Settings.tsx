@@ -54,7 +54,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
               type="text"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 rounded-md text-white input-focus"
+              className="w-full px-3 py-2 bg-gray-700 rounded-lg text-white input-focus"
               placeholder="Enter your name"
             />
           </div>
@@ -67,7 +67,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
               type="number"
               value={hourlyRate}
               onChange={(e) => setHourlyRate(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 rounded-md text-white input-focus"
+              className="w-full px-3 py-2 bg-gray-700 rounded-lg text-white input-focus"
               placeholder="Enter your hourly rate"
               min="0"
               step="0.01"
@@ -83,7 +83,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 button-press"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 button-press"
             >
               Save Changes
             </button>

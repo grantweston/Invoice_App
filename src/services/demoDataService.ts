@@ -40,10 +40,10 @@ export const demoDataService = {
       // Create WIP entries first
       const taxPrepWIP: WIPEntry = {
         id: Date.now(),
-        client: "Johnson & Associates",
+        client: "Jimmy's Laundromats",
         project: "Tax Return Preparation",
         timeInMinutes: 3,
-        partner: "Alex",
+        partner: "Sam Ende",
         hourlyRate: 150,
         description: TAX_PREP_DESCRIPTIONS.join('\n'),
         associatedDailyIds: [],
@@ -54,10 +54,10 @@ export const demoDataService = {
 
       const taxResearchWIP: WIPEntry = {
         id: Date.now() + 1,
-        client: "Smith & Co Tax Advisors",
+        client: "Red McCombs Car Dealers",
         project: "Tax Law Research",
         timeInMinutes: 7,
-        partner: "Alex",
+        partner: "Grant Weston",
         hourlyRate: 200,
         description: TAX_RESEARCH_DESCRIPTIONS.join('\n'),
         associatedDailyIds: [],

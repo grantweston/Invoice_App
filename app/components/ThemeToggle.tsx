@@ -28,7 +28,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className={`relative py-[6px] px-4 rounded-md transition-all duration-300 ease-spring
+      className={`relative py-[6px] px-4 rounded-lg transition-all duration-300 ease-spring
         ${darkMode 
           ? 'bg-gray-800 text-yellow-300 hover:bg-gray-700' 
           : 'bg-gray-600/90 text-yellow-500 hover:bg-gray-500/90'

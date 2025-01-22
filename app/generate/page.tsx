@@ -244,7 +244,7 @@ export default function GenerateInvoicePage() {
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
                 Add WIP Entry
               </button>
@@ -289,7 +289,7 @@ export default function GenerateInvoicePage() {
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
                 Add Daily Activity
               </button>
@@ -302,7 +302,7 @@ export default function GenerateInvoicePage() {
             onClick={() => {
               console.log('Clear button clicked');
             }}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
           >
             Clear All Entries
           </button>
@@ -313,7 +313,7 @@ export default function GenerateInvoicePage() {
                 generateInvoice(true);
               }}
               disabled={isGenerating}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50"
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50"
             >
               {isGenerating ? 'Previewing...' : 'Update Preview'}
             </button>
@@ -323,7 +323,7 @@ export default function GenerateInvoicePage() {
                 generateInvoice(false);
               }}
               disabled={isGenerating}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
             >
               {isGenerating ? 'Generating...' : 'Generate & Download'}
             </button>

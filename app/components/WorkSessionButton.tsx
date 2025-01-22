@@ -32,15 +32,12 @@ export default function WorkSessionButton({ onStart, onEnd }: WorkSessionButtonP
     <button
       onClick={handleClick}
       className={`
-        relative px-4 py-[6px] rounded-lg font-medium text-xs
-        transition-all duration-500 ease-in-out
-        flex items-center gap-2 group shadow-lg
+        relative px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all duration-150 hover:scale-105
         ${isRecording 
-          ? 'bg-red-500/30 hover:bg-red-500/40 text-red-300 border border-red-500/30 hover:border-red-500/40' 
+          ? 'bg-red-500/40 hover:bg-red-500/50 text-red-300 border border-red-500/30 hover:border-red-500/40' 
           : isPending
             ? 'bg-gray-500/30 text-gray-300 border border-gray-500/30'
-            : 'bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/40'}
-        hover:scale-105
+            : 'bg-emerald-500/50 hover:bg-emerald-500/60 text-emerald-200 border border-emerald-500/30 hover:border-emerald-500/40'}
         ${isPending ? 'cursor-wait' : 'cursor-pointer'}
       `}
       disabled={isPending}
