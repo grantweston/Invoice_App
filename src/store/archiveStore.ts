@@ -4,13 +4,14 @@ import { WIPEntry } from '@/src/types';
 
 interface ArchivedInvoice {
   id: string;
-  googleDocId: string;
+  googleDocId?: string;
   client: string;
-  project: string;
+  project?: string;
   date: string;
   amount: number;
-  wipEntries: WIPEntry[];
-  dailyActivities: any[]; // TODO: Add proper type
+  url?: string;
+  wipEntries?: WIPEntry[];
+  dailyActivities: WIPEntry[]; // This needs to be required for archived invoices
   archivedAt: string;
 }
 
