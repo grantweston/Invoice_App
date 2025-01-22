@@ -365,8 +365,8 @@ export default function PageClient({ initialEntries }: PageClientProps) {
   // Handle new screen analysis
   const handleScreenBatch = async (screenshots: string[]) => {
     try {
-      if (screenshots.length < 60) {
-        console.log(`⏳ Waiting for more screenshots (${screenshots.length}/60)...`);
+      if (screenshots.length < 12) {
+        console.log(`⏳ Waiting for more screenshots (${screenshots.length}/12)...`);
         return;
       }
 
