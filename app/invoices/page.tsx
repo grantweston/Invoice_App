@@ -144,6 +144,33 @@ export default function InvoicesPage() {
     }, 800);
   };
 
+  const handleEmailInvoice = async (invoice: GeneratedInvoice) => {
+    try {
+      // First handle the download
+      const response = await fetch(`https://docs.google.com/document/d/${invoice.googleDocId}/export?format=pdf`);
+      const blob = await response.blob();
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice - ${invoice.client}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      // Now handle the email client opening
+      const subject = `Invoice - ${invoice.client}`;
+      const body = `Please find the invoice attached.\n\nAmount: ${formatCurrency(invoice.amount)}\nDate: ${formatDate(invoice.date)}`;
+      
+      console.log('Opening email client...');
+      window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+    } catch (error) {
+      console.error('Error handling email:', error);
+      alert('Failed to prepare email. Please try again.');
+    }
+  };
+
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
@@ -224,6 +251,19 @@ export default function InvoicesPage() {
                     </svg>
                     Open in Google Docs
                   </a>
+                  <button
+                    onClick={() => handleEmailInvoice(invoice)}
+                    className="px-4 py-2 bg-blue-100 dark:bg-blue-500/30
+                      hover:bg-blue-200 dark:hover:bg-blue-500/40 
+                      text-blue-700 dark:text-blue-300 rounded-lg flex items-center gap-2 transition-all duration-200 
+                      text-sm font-medium border border-blue-300 dark:border-blue-500/30 
+                      hover:border-blue-400 dark:hover:border-blue-500/40"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Send via Email
+                  </button>
                   <button
                     onClick={() => router.push(`/invoices/edit/${invoice.id}`)}
                     className="px-4 py-2 bg-emerald-100 dark:bg-emerald-500/30

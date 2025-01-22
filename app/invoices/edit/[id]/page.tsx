@@ -5,6 +5,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useDocVersionStore } from '@/src/store/docVersionStore';
 import { docChatService, ChatMessage } from '@/src/services/docChatService';
 import { clientDocsService } from '@/src/services/clientDocsService';
+import { useGeneratedInvoices } from '@/src/store/generatedInvoicesStore';
+import { useWIPStore } from '@/src/store/wipStore';
+import { useGoogleDocSync } from '@/src/hooks/useGoogleDocSync';
 
 export default function EditInvoicePage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -13,6 +16,52 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
   const [isProcessing, setIsProcessing] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { addVersion, undo, redo, canUndo, canRedo } = useDocVersionStore();
+  const invoice = useGeneratedInvoices(state => state.invoices.find(inv => inv.id === params.id));
+  const wipEntries = useWIPStore(state => state.entries);
+  const { documentAmount } = useGoogleDocSync(params.id);
+
+  // Calculate WIP total
+  const wipTotal = invoice?.wipEntries.reduce((total, entry) => {
+    const timeInHours = (entry.timeInMinutes || 0) / 60;
+    return total + (timeInHours * entry.hourlyRate);
+  }, 0) || 0;
+
+  // Calculate other amounts
+  const onAccount = 0; // For now this is 0
+  const netWip = wipTotal - onAccount;
+  const toBill = documentAmount || wipTotal;
+  const writeOff = netWip - toBill;
+  const realization = wipTotal ? (onAccount + toBill) / wipTotal : 0;
+
+  // Format currency helper
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  // Format percentage helper
+  const formatPercentage = (value: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(value);
+  };
+
+  // Log amount changes for debugging
+  useEffect(() => {
+    console.log('Amount values:', {
+      documentAmount,
+      wipTotal,
+      onAccount,
+      netWip,
+      toBill,
+      writeOff,
+      realization
+    });
+  }, [documentAmount, wipTotal, onAccount, netWip, toBill, writeOff, realization]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -52,13 +101,17 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
         chatHistory
       );
 
-      // If document was updated, save new version
+      // If document was updated, save new version and check amount
       if (documentUpdated) {
         const doc = await clientDocsService.getDocument(params.id);
         const content = doc.body.content
           .map((item: any) => item.paragraph?.elements?.[0]?.textRun?.content || '')
           .join('');
         addVersion(content);
+        
+        // Check for new amount after chat update
+        console.log('💬 Chat updated document, checking amount...');
+        window.postMessage({ type: 'documentChanged' }, '*');
       }
 
       setChatHistory(prev => [...prev, { role: 'assistant', content: response }]);
@@ -102,6 +155,17 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
       } catch (error) {
         console.error('Error during redo:', error);
       }
+    }
+  };
+
+  // Track iframe focus state
+  const [iframeHasFocus, setIframeHasFocus] = useState(false);
+
+  // Function to check for changes when iframe loses focus
+  const checkForChanges = () => {
+    if (iframeHasFocus) {
+      console.log('📝 Document interaction ended, checking for changes...');
+      window.postMessage({ type: 'documentChanged' }, '*');
     }
   };
 
@@ -258,45 +322,47 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
             </div>
 
             {/* Billing Summary Table */}
-            <div className="h-[50vh] p-3 border-t border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="h-[50vh] p-2 border-t border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
               <div className="h-full overflow-x-auto rounded-xl bg-gray-50 dark:bg-gray-800 shadow-xl">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead>
-                    <tr>
-                      <th scope="col" className="px-2 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">WIP</th>
-                      <th scope="col" className="px-2 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">On Acct</th>
-                      <th scope="col" className="px-2 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">Net WIP</th>
-                      <th scope="col" className="px-2 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">To Bill</th>
-                      <th scope="col" className="px-2 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">Write Off</th>
+                    <tr className="divide-x divide-gray-200 dark:divide-gray-700">
+                      <th scope="col" className="px-1.5 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">WIP</th>
+                      <th scope="col" className="px-1.5 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">On Acct</th>
+                      <th scope="col" className="px-1.5 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">Net WIP</th>
+                      <th scope="col" className="px-1.5 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">To Bill</th>
+                      <th scope="col" className="px-1.5 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">Write Off</th>
+                      <th scope="col" className="px-1.5 py-2 text-left text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-800">Realization</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    <tr className="hover:bg-gray-100 dark:hover:bg-[#374151] transition-colors duration-150">
-                      <td className="px-2 py-3 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">$0.00</td>
-                      <td className="px-2 py-3 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">$0.00</td>
-                      <td className="px-2 py-3 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">$0.00</td>
-                      <td className="px-2 py-3 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">$0.00</td>
-                      <td className="px-2 py-3 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">$0.00</td>
+                    <tr className="hover:bg-gray-100 dark:hover:bg-[#374151] transition-colors duration-150 divide-x divide-gray-200 dark:divide-gray-700">
+                      <td className="px-1.5 py-2 whitespace-nowrap text-[11px] font-medium text-gray-900 dark:text-white">{formatCurrency(wipTotal)}</td>
+                      <td className="px-1.5 py-2 whitespace-nowrap text-[11px] font-medium text-gray-900 dark:text-white">{formatCurrency(onAccount)}</td>
+                      <td className="px-1.5 py-2 whitespace-nowrap text-[11px] font-medium text-gray-900 dark:text-white">{formatCurrency(netWip)}</td>
+                      <td className="px-1.5 py-2 whitespace-nowrap text-[11px] font-medium text-gray-900 dark:text-white">{formatCurrency(toBill)}</td>
+                      <td className="px-1.5 py-2 whitespace-nowrap text-[11px] font-medium text-gray-900 dark:text-white">{formatCurrency(writeOff)}</td>
+                      <td className="px-1.5 py-2 whitespace-nowrap text-[11px] font-medium text-gray-900 dark:text-white">{formatPercentage(realization)}</td>
                     </tr>
                   </tbody>
                 </table>
 
                 {/* Action Buttons */}
-                <div className="p-3 border-t border-gray-200 dark:border-[#374151] flex justify-center space-x-3">
+                <div className="p-2 border-t border-gray-200 dark:border-[#374151] flex justify-center space-x-2">
                   <button
                     onClick={() => {/* TODO: Implement internal submit */}}
-                    className="px-4 py-2 bg-orange-500/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-500/40 text-xs transition-all duration-200 flex items-center gap-1.5 font-medium border border-orange-500/40"
+                    className="px-3 py-1.5 bg-orange-500/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-500/40 text-[11px] transition-all duration-200 flex items-center gap-1 font-medium border border-orange-500/40"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Submit Invoice Internally
                   </button>
                   <button
                     onClick={() => {/* TODO: Implement send to client */}}
-                    className="px-4 py-2 bg-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-500/40 text-xs transition-all duration-200 flex items-center gap-1.5 font-medium border border-emerald-500/40"
+                    className="px-3 py-1.5 bg-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-500/40 text-[11px] transition-all duration-200 flex items-center gap-1 font-medium border border-emerald-500/40"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                     Send Invoice to Client
@@ -314,6 +380,12 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
               src={`https://docs.google.com/document/d/${params.id}/edit?rm=minimal&embedded=true&chrome=false&rm=demo`}
               className="w-full h-full border-0"
               style={{ minHeight: 'calc(100vh * 1.4)' }}
+              onMouseEnter={() => setIframeHasFocus(true)}
+              onMouseLeave={() => {
+                setIframeHasFocus(false);
+                checkForChanges();
+              }}
+              onClick={() => setIframeHasFocus(true)}
             />
           </div>
         </div>
