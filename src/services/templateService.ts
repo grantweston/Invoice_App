@@ -5,16 +5,6 @@ import { useTemplateStore } from '@/src/store/templateStore';
 import { templateMetadataService } from './templateMetadataService';
 import { Readable } from 'stream';
 
-// Initialize auth client
-const auth = new JWT({
-  email: process.env.GOOGLE_CLIENT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  scopes: ['https://www.googleapis.com/auth/drive'],
-});
-
-// Initialize the Drive API
-const drive = google.drive({ version: 'v3', auth });
-
 const TEMPLATES_FOLDER_NAME = 'Invoice Templates';
 const INVOICES_FOLDER_NAME = 'Invoices';
 
@@ -33,8 +23,20 @@ interface TemplateMetadata {
 }
 
 export const templateService = {
+  getDriveClient() {
+    const auth = new JWT({
+      email: process.env.GOOGLE_CLIENT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/drive'],
+    });
+
+    return google.drive({ version: 'v3', auth });
+  },
+
   async ensureFoldersExist() {
     try {
+      const drive = this.getDriveClient();
+      
       // Check if Templates folder exists
       let templatesFolder = await this.findFolder(TEMPLATES_FOLDER_NAME);
       if (!templatesFolder) {
@@ -59,6 +61,7 @@ export const templateService = {
 
   async findFolder(name: string): Promise<drive_v3.Schema$File | null> {
     try {
+      const drive = this.getDriveClient();
       const response = await drive.files.list({
         q: `mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false`,
         fields: 'files(id, name)',
@@ -73,6 +76,7 @@ export const templateService = {
 
   async createFolder(name: string): Promise<drive_v3.Schema$File> {
     try {
+      const drive = this.getDriveClient();
       const response = await drive.files.create({
         requestBody: {
           name,
@@ -90,91 +94,61 @@ export const templateService = {
 
   async uploadTemplate(file: File): Promise<TemplateMetadata> {
     try {
-      console.log('Starting template upload for file:', {
-        name: file.name,
-        type: file.type,
-        size: file.size
-      });
-
-      const { templatesFolderId } = await this.ensureFoldersExist();
-      console.log('Templates folder ID:', templatesFolderId);
-
-      // Convert File to Buffer and then to Readable stream
-      console.log('Converting file to stream...');
+      const drive = this.getDriveClient();
+      
+      // Ensure folders exist
+      const { templatesFolder } = await this.ensureFoldersExist();
+      
+      // Convert File to Buffer
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      const stream = Readable.from(buffer);
-      console.log('File converted to stream');
 
-      // Upload original file
+      // Create file metadata
+      const fileMetadata = {
+        name: file.name,
+        parents: [templatesFolder.id!],
+        mimeType: file.type
+      };
+
+      // Create media
+      const media = {
+        mimeType: file.type,
+        body: Readable.from(buffer)
+      };
+
+      // Upload file
       console.log('Uploading file to Google Drive...');
       const uploadResponse = await drive.files.create({
-        requestBody: {
-          name: file.name,
-          parents: [templatesFolderId],
-          description: 'Invoice template file'
-        },
-        media: {
-          mimeType: file.type,
-          body: stream,
-        },
-        fields: 'id, name, mimeType, webViewLink',
+        requestBody: fileMetadata,
+        media: media,
+        fields: 'id, name, mimeType, createdTime, webViewLink'
       });
+
+      if (!uploadResponse.data.id) {
+        throw new Error('Failed to upload template: No file ID returned');
+      }
 
       console.log('File uploaded successfully:', uploadResponse.data);
-      const originalId = uploadResponse.data.id!;
-
-      // Make the file publicly accessible
-      console.log('Setting public access permissions...');
-      await drive.permissions.create({
-        fileId: originalId,
-        requestBody: {
-          role: 'writer',
-          type: 'anyone'
-        }
-      });
 
       // Convert to Google Doc if not already
-      console.log('Converting to Google Doc...');
-      const googleDocId = await this.convertToGoogleDoc(originalId, templatesFolderId);
-      console.log('Converted to Google Doc, ID:', googleDocId);
+      const googleDocId = await this.convertToGoogleDoc(
+        uploadResponse.data.id,
+        templatesFolder.id!
+      );
 
-      // Make the Google Doc publicly accessible with edit permissions
-      await drive.permissions.create({
-        fileId: googleDocId,
-        requestBody: {
-          role: 'writer',
-          type: 'anyone'
-        }
-      });
-
-      const metadata = { originalId, googleDocId };
-      console.log('Storing template metadata:', metadata);
-      
-      // Store metadata both client and server-side
-      if (typeof window !== 'undefined') {
-        useTemplateStore.getState().storeTemplateMetadata(metadata);
-      }
-      await templateMetadataService.updateMetadata(metadata);
-      
-      console.log('Template metadata stored successfully');
-
-      return metadata;
+      return {
+        originalId: uploadResponse.data.id,
+        googleDocId: googleDocId
+      };
     } catch (error) {
       console.error('Error uploading template:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        });
-      }
-      throw error;
+      throw new Error(`Failed to upload template: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
 
   async convertToGoogleDoc(fileId: string, folderId: string): Promise<string> {
     try {
+      const drive = this.getDriveClient();
       console.log('Getting file metadata for conversion:', fileId);
       // Get the file's metadata
       const file = await drive.files.get({
@@ -217,6 +191,8 @@ export const templateService = {
 
   async listTemplates(): Promise<Template[]> {
     try {
+      const drive = this.getDriveClient();
+      
       // Get templates folder ID from cache if possible
       let templatesFolderId = await drive.files.list({
         q: `mimeType='application/vnd.google-apps.folder' and name='${TEMPLATES_FOLDER_NAME}' and trashed=false`,
@@ -268,6 +244,7 @@ export const templateService = {
     date: string
   ): Promise<string> {
     try {
+      const drive = this.getDriveClient();
       const { invoicesFolderId } = await this.ensureFoldersExist();
 
       // Get the Google Doc version of the template
@@ -354,6 +331,7 @@ export const templateService = {
 
     // If not found in either place, try to find it directly in Google Drive
     try {
+      const drive = this.getDriveClient();
       const file = await drive.files.get({
         fileId: originalId,
         fields: 'id, name, mimeType, description'
@@ -396,6 +374,7 @@ export const templateService = {
       const metadata = await this.getTemplateMetadata(templateId);
       
       // Delete original file
+      const drive = this.getDriveClient();
       await drive.files.delete({
         fileId: templateId
       });
