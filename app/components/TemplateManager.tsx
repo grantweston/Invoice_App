@@ -53,11 +53,20 @@ export default function TemplateManager() {
         body: formData,
       });
 
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to upload template');
+        const errorText = await response.text();
+        let errorMessage = 'Failed to upload template';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If JSON parsing fails, use the raw error text
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
+
+      const data = await response.json();
 
       // Set as default template if none exists
       if (!defaultTemplateId) {
