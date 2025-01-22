@@ -97,7 +97,7 @@ export const templateService = {
       const drive = this.getDriveClient();
       
       // Ensure folders exist
-      const { templatesFolder } = await this.ensureFoldersExist();
+      const { templatesFolderId } = await this.ensureFoldersExist();
       
       // Convert File to Buffer
       const arrayBuffer = await file.arrayBuffer();
@@ -106,7 +106,7 @@ export const templateService = {
       // Create file metadata
       const fileMetadata = {
         name: file.name,
-        parents: [templatesFolder.id!],
+        parents: [templatesFolderId],
         mimeType: file.type
       };
 
@@ -133,7 +133,7 @@ export const templateService = {
       // Convert to Google Doc if not already
       const googleDocId = await this.convertToGoogleDoc(
         uploadResponse.data.id,
-        templatesFolder.id!
+        templatesFolderId
       );
 
       return {
