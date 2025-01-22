@@ -5,16 +5,6 @@ import { useTemplateStore } from '@/src/store/templateStore';
 import { templateMetadataService } from './templateMetadataService';
 import { Readable } from 'stream';
 
-// Initialize auth client
-const auth = new JWT({
-  email: process.env.GOOGLE_CLIENT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  scopes: ['https://www.googleapis.com/auth/drive'],
-});
-
-// Initialize the Drive API
-const drive = google.drive({ version: 'v3', auth });
-
 const TEMPLATES_FOLDER_NAME = 'Invoice Templates';
 const INVOICES_FOLDER_NAME = 'Invoices';
 
@@ -36,8 +26,20 @@ interface TemplateMetadata {
 }
 
 export const templateService = {
+  getDriveClient() {
+    const auth = new JWT({
+      email: process.env.GOOGLE_CLIENT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/drive'],
+    });
+
+    return google.drive({ version: 'v3', auth });
+  },
+
   async ensureFoldersExist() {
     try {
+      const drive = this.getDriveClient();
+      
       // Check if Templates folder exists
       let templatesFolder = await this.findFolder(TEMPLATES_FOLDER_NAME);
       if (!templatesFolder) {
@@ -62,6 +64,7 @@ export const templateService = {
 
   async findFolder(name: string): Promise<drive_v3.Schema$File | null> {
     try {
+      const drive = this.getDriveClient();
       const response = await drive.files.list({
         q: `mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false`,
         fields: 'files(id, name)',
@@ -76,6 +79,7 @@ export const templateService = {
 
   async createFolder(name: string): Promise<drive_v3.Schema$File> {
     try {
+      const drive = this.getDriveClient();
       const response = await drive.files.create({
         requestBody: {
           name,
@@ -111,6 +115,7 @@ export const templateService = {
 
       // Upload original file
       console.log('Uploading file to Google Drive...');
+      const drive = this.getDriveClient();
       const uploadResponse = await drive.files.create({
         requestBody: {
           name: file.name,
@@ -180,6 +185,7 @@ export const templateService = {
     try {
       console.log('Getting file metadata for conversion:', fileId);
       // Get the file's metadata
+      const drive = this.getDriveClient();
       const file = await drive.files.get({
         fileId,
         fields: 'mimeType, name',
@@ -222,6 +228,7 @@ export const templateService = {
     try {
       // Use cached folder ID if available
       if (!templatesFolderIdCache) {
+        const drive = this.getDriveClient();
         templatesFolderIdCache = await drive.files.list({
           q: `mimeType='application/vnd.google-apps.folder' and name='${TEMPLATES_FOLDER_NAME}' and trashed=false`,
           fields: 'files(id)',
@@ -229,6 +236,7 @@ export const templateService = {
         }).then(res => res.data.files?.[0]?.id || null);
 
         if (!templatesFolderIdCache) {
+          const drive = this.getDriveClient();
           const folder = await this.createFolder(TEMPLATES_FOLDER_NAME);
           templatesFolderIdCache = folder.id!;
         }
@@ -238,7 +246,7 @@ export const templateService = {
       const [serverMetadata, clientMetadata, filesResponse] = await Promise.all([
         templateMetadataService.getMetadata(),
         Promise.resolve(typeof window !== 'undefined' ? useTemplateStore.getState().templateMetadata : {}),
-        drive.files.list({
+        this.getDriveClient().files.list({
           q: `'${templatesFolderIdCache}' in parents and trashed=false`,
           fields: 'files(id, name, webViewLink)',  // Reduced fields
           orderBy: 'createdTime desc',
@@ -290,6 +298,7 @@ export const templateService = {
       const metadata = useTemplateStore.getState().getTemplateMetadata(templateId);
       const sourceId = metadata?.googleDocId || templateId;
 
+      const drive = this.getDriveClient();
       const response = await drive.files.copy({
         fileId: sourceId,
         requestBody: {
@@ -370,6 +379,7 @@ export const templateService = {
 
     // If not found in either place, try to find it directly in Google Drive
     try {
+      const drive = this.getDriveClient();
       const file = await drive.files.get({
         fileId: originalId,
         fields: 'id, name, mimeType, description'
@@ -412,6 +422,7 @@ export const templateService = {
       const metadata = await this.getTemplateMetadata(templateId);
       
       // Delete original file
+      const drive = this.getDriveClient();
       await drive.files.delete({
         fileId: templateId
       });
