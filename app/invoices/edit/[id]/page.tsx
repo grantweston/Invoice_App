@@ -8,6 +8,9 @@ import { clientDocsService } from '@/src/services/clientDocsService';
 import { useGeneratedInvoices } from '@/src/store/generatedInvoicesStore';
 import { useWIPStore } from '@/src/store/wipStore';
 import { useGoogleDocSync } from '@/src/hooks/useGoogleDocSync';
+import { formatCurrency, formatDate } from "@/src/utils/formatters";
+import { useDailyLogs } from '@/src/store/dailyLogs';
+import { useArchiveStore } from '@/src/store/archiveStore';
 
 export default function EditInvoicePage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -32,14 +35,6 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
   const toBill = documentAmount || wipTotal;
   const writeOff = netWip - toBill;
   const realization = wipTotal ? (onAccount + toBill) / wipTotal : 0;
-
-  // Format currency helper
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
 
   // Format percentage helper
   const formatPercentage = (value: number): string => {
@@ -166,6 +161,37 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
     if (iframeHasFocus) {
       console.log('📝 Document interaction ended, checking for changes...');
       window.postMessage({ type: 'documentChanged' }, '*');
+    }
+  };
+
+  const handleSendToClient = async () => {
+    try {
+      // Prepare email parameters
+      const subject = encodeURIComponent(`Invoice - ${invoice.client}`);
+      const body = encodeURIComponent(`Please find the invoice attached.\n\nAmount: ${formatCurrency(invoice.amount)}\nDate: ${formatDate(invoice.date)}`);
+      const mailtoUrl = `mailto:?subject=${subject}&body=${body}`;
+      
+      // Open email client
+      window.location.href = mailtoUrl;
+
+      // Download PDF for attachment
+      const response = await fetch(`https://docs.google.com/document/d/${invoice.googleDocId}/export?format=pdf`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice - ${invoice.client}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error sending invoice:', error);
+      alert('Failed to prepare email. Please try again.');
     }
   };
 
@@ -302,13 +328,17 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                 <button
                   onClick={handleSendMessage}
                   disabled={isProcessing}
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-xs transition-all duration-200 flex items-center gap-1.5 font-medium border border-gray-300 dark:border-gray-600 disabled:opacity-50 w-[88px] h-[38px] flex-shrink-0"
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-xs transition-all duration-200 flex items-center gap-1.5 font-medium border border-gray-300 dark:border-gray-600 disabled:opacity-50 w-[100px] h-[38px] flex-shrink-0 justify-center overflow-hidden"
                 >
                   {isProcessing ? (
-                    <>
-                      <span className="animate-spin">⚪</span>
-                      <span>Processing...</span>
-                    </>
+                    <div className="flex items-center gap-1">
+                      <span>Processing</span>
+                      <span className="flex">
+                        <span className="animate-[bounce_1s_infinite_100ms]">.</span>
+                        <span className="animate-[bounce_1s_infinite_200ms]">.</span>
+                        <span className="animate-[bounce_1s_infinite_300ms]">.</span>
+                      </span>
+                    </div>
                   ) : (
                     <>
                       <span>Send</span>
@@ -350,16 +380,103 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                 {/* Action Buttons */}
                 <div className="p-2 border-t border-gray-200 dark:border-[#374151] flex justify-center space-x-2">
                   <button
-                    onClick={() => {/* TODO: Implement internal submit */}}
+                    onClick={async () => {
+                      // Get the invoice data
+                      const invoice = useGeneratedInvoices.getState().invoices.find(i => i.id === params.id);
+                      if (!invoice) return;
+
+                      // Ask for confirmation first
+                      if (!confirm('Are you sure you want to archive this invoice? Associated entries will be removed from your WIP report.')) {
+                        return;
+                      }
+
+                      // Get the Google Docs container
+                      const docsContainer = document.querySelector('.h-full.overflow-hidden') as HTMLElement;
+                      if (!docsContainer) return;
+
+                      // Create stamp overlay
+                      const stamp = document.createElement('div');
+                      stamp.className = 'fixed bg-red-600/20 flex items-center justify-center z-50 pointer-events-none';
+                      stamp.innerHTML = `
+                        <div class="text-red-600 border-8 border-red-600 rounded-lg px-8 py-4 text-4xl font-bold rotate-[-20deg] 
+                          opacity-0 scale-150 transition-all duration-300 transform origin-center">
+                          ARCHIVED
+                        </div>
+                      `;
+
+                      // Position stamp over the docs container
+                      const containerRect = docsContainer.getBoundingClientRect();
+                      Object.assign(stamp.style, {
+                        top: `${containerRect.top}px`,
+                        left: `${containerRect.left}px`,
+                        width: `${containerRect.width}px`,
+                        height: `${containerRect.height}px`,
+                      });
+
+                      // Add stamp to body
+                      document.body.appendChild(stamp);
+
+                      // Trigger stamp animation
+                      requestAnimationFrame(() => {
+                        const stampText = stamp.querySelector('div');
+                        if (stampText instanceof HTMLElement) {
+                          stampText.classList.remove('opacity-0', 'scale-150');
+                          stampText.classList.add('opacity-100', 'scale-100');
+                        }
+                      });
+
+                      // Add fade out to docs container
+                      docsContainer.style.transition = 'all 0.5s ease-in-out';
+                      docsContainer.style.opacity = '0.3';
+
+                      // Remove animations after delay
+                      setTimeout(() => {
+                        stamp.remove();
+                        docsContainer.style.opacity = '';
+                        docsContainer.style.transition = '';
+
+                        // Get all daily logs
+                        const currentDailyLogs = useDailyLogs.getState().logs;
+                        
+                        // Get all daily log IDs associated with this invoice's WIP entries
+                        const dailyLogIds = new Set(invoice.wipEntries.flatMap(entry => 
+                          (entry.associatedDailyIds || []).map(id => Number(id))
+                        ));
+                        
+                        // Get the daily logs to archive and the ones to keep
+                        const logsToArchive = currentDailyLogs.filter(log => dailyLogIds.has(Number(log.id)));
+                        const remainingLogs = currentDailyLogs.filter(log => !dailyLogIds.has(Number(log.id)));
+                        
+                        // Archive the invoice with both WIP and daily entries
+                        useArchiveStore.getState().archiveInvoice({
+                          ...invoice,
+                          archivedAt: new Date().toISOString(),
+                          dailyActivities: logsToArchive
+                        });
+                        
+                        // Remove from generated invoices
+                        useGeneratedInvoices.getState().deleteInvoice(invoice.id);
+
+                        // Remove associated WIP entries
+                        const wipIds = invoice.wipEntries.map(entry => entry.id);
+                        useWIPStore.getState().removeEntries(wipIds);
+
+                        // Update daily logs to remove archived ones
+                        useDailyLogs.getState().setLogs(remainingLogs);
+
+                        // Redirect to invoices page
+                        window.location.href = '/invoices';
+                      }, 800);
+                    }}
                     className="px-3 py-1.5 bg-orange-500/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-500/40 text-[11px] transition-all duration-200 flex items-center gap-1 font-medium border border-orange-500/40"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Submit Invoice Internally
+                    Submit Internally and Archive
                   </button>
                   <button
-                    onClick={() => {/* TODO: Implement send to client */}}
+                    onClick={handleSendToClient}
                     className="px-3 py-1.5 bg-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-500/40 text-[11px] transition-all duration-200 flex items-center gap-1 font-medium border border-emerald-500/40"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

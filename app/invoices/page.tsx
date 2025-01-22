@@ -145,11 +145,23 @@ export default function InvoicesPage() {
   };
 
   const handleEmailInvoice = async (invoice: GeneratedInvoice) => {
+    console.log('handleEmailInvoice called with invoice:', invoice);
     try {
-      // First handle the download
-      const response = await fetch(`https://docs.google.com/document/d/${invoice.googleDocId}/export?format=pdf`);
-      const blob = await response.blob();
+      // Prepare email parameters
+      const subject = encodeURIComponent(`Invoice - ${invoice.client}`);
+      const body = encodeURIComponent(`Please find the invoice attached.\n\nAmount: ${formatCurrency(invoice.amount)}\nDate: ${formatDate(invoice.date)}`);
+      const mailtoUrl = `mailto:?subject=${subject}&body=${body}`;
       
+      console.log('Opening mailto URL:', mailtoUrl);
+      window.location.href = mailtoUrl;
+
+      // After email client is opened, trigger the PDF download
+      const response = await fetch(`https://docs.google.com/document/d/${invoice.googleDocId}/export?format=pdf`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -158,15 +170,8 @@ export default function InvoicesPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-
-      // Now handle the email client opening
-      const subject = `Invoice - ${invoice.client}`;
-      const body = `Please find the invoice attached.\n\nAmount: ${formatCurrency(invoice.amount)}\nDate: ${formatDate(invoice.date)}`;
-      
-      console.log('Opening email client...');
-      window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
     } catch (error) {
-      console.error('Error handling email:', error);
+      console.error('Error in handleEmailInvoice:', error);
       alert('Failed to prepare email. Please try again.');
     }
   };
