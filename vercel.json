@@ -10,7 +10,7 @@
     }
   ],
   "functions": {
-    "app/api/templates/route.ts": {
+    "app/api/**/*": {
       "maxDuration": 60
     }
   },
