@@ -9,6 +9,7 @@ export interface GeneratedInvoice {
   project?: string;
   date: string;
   amount: number;
+  wip: number;
   url?: string;
   wipEntries?: WIPEntry[];
   dailyActivities?: any[];
