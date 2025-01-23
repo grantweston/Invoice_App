@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { invoiceService } from '@/src/services/invoiceService';
 
+// Mark as dynamic route
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const data = await request.json();

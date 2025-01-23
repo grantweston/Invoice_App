@@ -125,7 +125,10 @@ export default function GenerateInvoicePage() {
           project: Object.keys(data.projects || {})[0] || entries[0]?.project || 'Unknown', // Fallback to first entry's project or 'Unknown'
           date: new Date().toISOString(),
           amount: totalAmount,
-          wipEntries: entries,
+          wipEntries: entries.map(entry => ({
+            ...entry,
+            associatedDailyIds: entry.associatedDailyIds?.map(id => Number(id)) || []
+          })),
           dailyActivities: [],
           wip: totalAmount
         });
@@ -145,7 +148,12 @@ export default function GenerateInvoicePage() {
   const handleGenerateInvoiceFromWIP = async (clientName: string, data: ClientData) => {
     setGeneratingInvoices(prev => ({ ...prev, [clientName]: true }));
     try {
-      const entries = Object.values(data.projects).flatMap((p: any) => p.entries);
+      const entries = Object.values(data.projects).flatMap(p => p.entries);
+      
+      // Get all daily log IDs associated with these entries
+      const dailyLogIds = new Set(entries.flatMap(entry => 
+        entry.associatedDailyIds || []
+      ));
       
       // Calculate total amount and hours from entries using the exact values from Excel
       let totalAmount = 0;

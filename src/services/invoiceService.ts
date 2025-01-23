@@ -72,7 +72,20 @@ interface AnalyzedInvoiceData {
   };
 }
 
+// Add this test function
+async function testGeminiApiKey() {
+  try {
+    const result = await model.generateContent('Say "API key is working!" if you can read this.');
+    console.log('🔑 Gemini API Test Result:', result.response.text());
+    return true;
+  } catch (error) {
+    console.error('❌ Gemini API Key Test Failed:', error);
+    return false;
+  }
+}
+
 export const invoiceService = {
+  testGeminiApiKey,
   async analyzeSampleInvoice(): Promise<string> {
     try {
       console.log('🔍 Reading local sample invoice...');

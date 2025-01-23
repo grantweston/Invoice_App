@@ -34,6 +34,28 @@ export default function InvoicesPage() {
   const handleDelete = async (invoice: GeneratedInvoice) => {
     if (confirm('Are you sure you want to delete this invoice? This cannot be undone.')) {
       try {
+        // Get the invoice card element
+        const card = document.querySelector(`[data-invoice-id="${invoice.id}"]`) as HTMLElement;
+        if (card) {
+          // Get the height of the card for the collapse animation
+          const height = card.offsetHeight;
+          card.style.height = `${height}px`;
+          
+          // Add slide-out animation
+          card.style.transition = 'all 0.4s ease-in-out';
+          card.style.transform = 'translateX(105%)';
+          card.style.opacity = '0';
+          
+          // After slide out, collapse the height
+          await new Promise(resolve => setTimeout(resolve, 400));
+          card.style.height = '0';
+          card.style.margin = '0';
+          card.style.padding = '0';
+          
+          // Wait for collapse animation
+          await new Promise(resolve => setTimeout(resolve, 400));
+        }
+
         // Delete from Google Drive
         const response = await fetch(`/api/invoices/${invoice.id}`, {
           method: 'DELETE'
@@ -216,7 +238,8 @@ export default function InvoicesPage() {
       <div className="space-y-4">
         {invoices.map((invoice) => (
           <div 
-            key={invoice.id} 
+            key={invoice.id}
+            data-invoice-id={invoice.id}
             className="invoice-card bg-white dark:bg-[#1f2937] rounded-xl border border-gray-200 dark:border-[#374151] 
               shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden relative"
           >
@@ -328,4 +351,18 @@ export default function InvoicesPage() {
       </div>
     </div>
   );
+}
+
+const styles = `
+  .invoice-card {
+    overflow: hidden;
+    transform-origin: right;
+  }
+`;
+
+// Add the styles to the document
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
 } 
