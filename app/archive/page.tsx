@@ -69,7 +69,10 @@ export default function ArchivePage() {
       if (invoice) {
         // Add back to generated invoices
         const { archivedAt, ...invoiceWithoutArchived } = invoice;
-        addInvoice(invoiceWithoutArchived);
+        addInvoice({
+          ...invoiceWithoutArchived,
+          wip: invoice.wipEntries?.reduce((sum, entry) => sum + ((entry.hours || 0) * entry.hourlyRate), 0) || 0
+        });
         
         // Restore WIP entries
         addWIPEntries(invoice.wipEntries);

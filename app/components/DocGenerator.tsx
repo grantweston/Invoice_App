@@ -65,7 +65,8 @@ export default function DocGenerator({ client, entries }: DocGeneratorProps) {
           client,
           date: new Date().toISOString(),
           amount: totalAmount,
-          url: `https://docs.google.com/document/d/${data.documentId}/edit`
+          url: `https://docs.google.com/document/d/${data.documentId}/edit`,
+          wip: 0
         });
 
         // Redirect back to invoices list
