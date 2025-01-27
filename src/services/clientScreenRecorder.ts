@@ -46,10 +46,14 @@ export class ClientScreenRecorder {
       console.log('🖼️ Canvas initialized', { width: canvas.width, height: canvas.height });
       console.log('📸 Starting screenshot capture...');
 
+<<<<<<< HEAD
       // Set up cleanup timeout
       this.setupCleanupTimeout();
 
       // Take a screenshot every second
+=======
+      // Take a screenshot every 5 seconds
+>>>>>>> gemini-updates
       const interval = setInterval(() => {
         if (!this.isRecording) {
           console.log('⏹️ Recording stopped, clearing interval');
@@ -65,10 +69,10 @@ export class ClientScreenRecorder {
           this.screenshotCount++;
           
           // Update screenshot count in document title
-          document.title = `📸 ${this.screenshotCount}/60 screenshots`;
+          document.title = `📸 ${this.screenshotCount}/12 screenshots`;
 
-          // Process when we have 60 screenshots (1 minute)
-          if (this.screenshotCount >= 60) {
+          // Process when we have 12 screenshots (1 minute)
+          if (this.screenshotCount >= 12) {
             console.log('📦 Minute complete, processing screenshots...');
             const screenshots = [...this.screenshotBuffer];
             this.cleanupScreenshots(); // Clean up before processing
@@ -78,7 +82,7 @@ export class ClientScreenRecorder {
           console.error('❌ Failed to capture screenshot:', error);
           this.cleanupScreenshots();
         }
-      }, 1000);
+      }, 5000);
 
     } catch (error) {
       console.error('❌ Failed to start recording:', error);

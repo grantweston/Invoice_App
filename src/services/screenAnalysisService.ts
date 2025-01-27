@@ -50,7 +50,7 @@ export async function analyzeScreenshots(screenshots: string[], currentTasks: WI
   try {
     console.log(`📸 Analyzing batch of ${screenshots.length} screenshots...`);
     
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp" });
 
     // Group existing entries by client and project
     const existingPairs = currentTasks.reduce((acc, task) => {

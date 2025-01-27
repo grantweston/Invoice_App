@@ -42,5 +42,29 @@ export const clientDocsService = {
       console.error('Error in updateDocument:', error);
       throw error;
     }
+  },
+
+  async extractAmount(doc: any): Promise<number | null> {
+    try {
+      console.log('🔍 Extracting amount from document...');
+      const response = await fetch('/api/docs/extract-amount', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ doc }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to extract amount: ${response.status}`);
+      }
+
+      const { amount } = await response.json();
+      console.log('💵 Extracted amount:', amount);
+      return amount;
+    } catch (error) {
+      console.error('❌ Error extracting amount:', error);
+      return null;
+    }
   }
 }; 

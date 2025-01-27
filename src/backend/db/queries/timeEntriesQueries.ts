@@ -2,7 +2,11 @@
 
 import { TimeEntry } from '@/src/backend/models/TimeEntry';
 
+// Mock data store
+let mockTimeEntries: TimeEntry[] = [];
+
 export async function insertTimeEntry(entry: TimeEntry) {
+<<<<<<< HEAD
   // Mock implementation
   console.log('Mock inserting time entry:', entry);
   return [{
@@ -21,6 +25,18 @@ export async function fetchAllTimeEntries() {
     description: 'Mock entry',
     date: new Date().toISOString()
   }];
+=======
+  const newEntry = {
+    ...entry,
+    id: Date.now().toString() // Mock ID generation
+  };
+  mockTimeEntries.push(newEntry);
+  return [newEntry];
+}
+
+export async function fetchAllTimeEntries() {
+  return mockTimeEntries;
+>>>>>>> gemini-updates
 }
 
 export async function fetchClientWithProjects(clientId: string) {

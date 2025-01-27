@@ -2,6 +2,9 @@ import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 import { NextResponse } from 'next/server';
 
+// Mark as dynamic route
+export const dynamic = 'force-dynamic';
+
 // Initialize auth client
 const auth = new JWT({
   email: process.env.GOOGLE_CLIENT_EMAIL,

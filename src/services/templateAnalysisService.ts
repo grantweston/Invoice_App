@@ -1,7 +1,11 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+<<<<<<< HEAD
 import { Template } from '@/src/services/templateService';
+=======
+import { Template } from '../store/invoiceStore';
+>>>>>>> gemini-updates
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || '');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export interface AnalyzedTemplate extends Template {
   content: string;
@@ -16,7 +20,7 @@ export interface AnalyzedTemplate extends Template {
 
 export async function analyzeTemplate(content: string, filename: string): Promise<AnalyzedTemplate> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-thinking-exp' });
 
     const prompt = `Analyze this Word document template and identify all placeholders that need to be filled. 
     The placeholders are likely in formats like {{placeholder}}, {placeholder}, or [placeholder].

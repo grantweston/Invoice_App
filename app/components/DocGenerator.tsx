@@ -65,7 +65,8 @@ export default function DocGenerator({ client, entries }: DocGeneratorProps) {
           client,
           date: new Date().toISOString(),
           amount: totalAmount,
-          url: `https://docs.google.com/document/d/${data.documentId}/edit`
+          url: `https://docs.google.com/document/d/${data.documentId}/edit`,
+          wip: 0
         });
 
         // Redirect back to invoices list
@@ -97,41 +98,54 @@ export default function DocGenerator({ client, entries }: DocGeneratorProps) {
         <button
           onClick={generateDoc}
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-blue-100 dark:bg-blue-500/40
+            hover:bg-blue-200 dark:hover:bg-blue-500/50 
+            text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-500/40 
+            hover:border-blue-400 dark:hover:border-blue-500/50
+            px-4 py-1.5 rounded-lg text-xs h-[38px] flex items-center gap-1 transition-all duration-150 hover:scale-105 shadow-lg
+            disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
               <span className="animate-spin">⚪</span>
-              Generating...
+              <span>Generating...</span>
             </>
           ) : (
             <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Generate Invoice
+              <span>Generate Invoice</span>
             </>
           )}
         </button>
       ) : (
-        <div className="flex gap-4">
+        <div className="flex gap-2">
           <button
             onClick={handleEditWithAI}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            className="bg-emerald-100 dark:bg-emerald-500/30
+              hover:bg-emerald-200 dark:hover:bg-emerald-500/40 
+              text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30 
+              hover:border-emerald-400 dark:hover:border-emerald-500/40
+              px-4 py-1.5 rounded-lg text-xs h-[38px] flex items-center gap-1 transition-all duration-150 hover:scale-105 shadow-lg"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
-            Edit with AI
+            <span>Edit with AI</span>
           </button>
           <button
             onClick={handleDownload}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            className="bg-gray-100 dark:bg-gray-500/30
+              hover:bg-gray-200 dark:hover:bg-gray-500/40 
+              text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-500/30 
+              hover:border-gray-400 dark:hover:border-gray-500/40
+              px-4 py-1.5 rounded-lg text-xs h-[38px] flex items-center gap-1 transition-all duration-150 hover:scale-105 shadow-lg"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Download Invoice
+            <span>Download Invoice</span>
           </button>
         </div>
       )}

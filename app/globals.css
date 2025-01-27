@@ -149,6 +149,15 @@ html, body {
   }
 }
 
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* Utility Classes */
 .animate-fade-in-up {
   animation: fadeInUp 0.5s ease-out forwards;
@@ -241,4 +250,8 @@ html, body {
 
 .recording-pulse {
   animation: recordingPulse 2s infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
 }

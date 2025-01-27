@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 export async function POST() {
   try {
+<<<<<<< HEAD
     // Screen capture is now handled client-side
+=======
+>>>>>>> gemini-updates
     return NextResponse.json({ 
       success: true, 
       message: "Work session stopped" 

@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "functions": {
+    "app/api/templates/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/invoices/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/analyze-screen/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    }
+  ]
+}

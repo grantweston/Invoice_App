@@ -1,15 +1,34 @@
 'use client';
 
+<<<<<<< HEAD
+=======
+import { createTimeEntry } from '@/src/backend/services/timeEntryService';
+import { promises as fs } from 'fs';
+import path from 'path';
+>>>>>>> gemini-updates
 import RecordRTC from 'recordrtc';
+import { useVideoStatusStore } from '@/src/store/videoStatusStore';
 
 export class ScreenVideoService {
   private recorder: RecordRTC | null = null;
   private isRecording = false;
+<<<<<<< HEAD
   private currentStatus: { state: string; message: string } = {
     state: 'idle',
     message: ''
   };
 
+=======
+  private recordingPath: string;
+
+  constructor() {
+    if (typeof window === 'undefined') {
+      throw new Error('ScreenVideoService can only be used in browser environment');
+    }
+    this.recordingPath = path.join(process.cwd(), 'recordings');
+  }
+
+>>>>>>> gemini-updates
   async startCapturing() {
     if (this.isRecording) {
       await this.stopCapturing();
@@ -17,6 +36,10 @@ export class ScreenVideoService {
 
     try {
       // Get screen stream
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        throw new Error('Screen capture is not supported in this environment');
+      }
+
       const stream = await navigator.mediaDevices.getDisplayMedia({ 
         video: true,
         audio: false
@@ -31,16 +54,16 @@ export class ScreenVideoService {
       this.recorder.startRecording();
       this.isRecording = true;
 
-      this.currentStatus = { 
+      useVideoStatusStore.getState().setStatus({ 
         state: 'recording', 
         message: 'Screen recording started' 
-      };
+      });
     } catch (error) {
       console.error('Failed to start recording:', error);
-      this.currentStatus = {
+      useVideoStatusStore.getState().setStatus({
         state: 'error',
         message: `Failed to start: ${error.message}`
-      };
+      });
     }
   }
 
@@ -57,17 +80,21 @@ export class ScreenVideoService {
       });
     } catch (error) {
       console.error('Failed to stop recording:', error);
-      this.currentStatus = {
+      useVideoStatusStore.getState().setStatus({
         state: 'error',
         message: `Failed to stop: ${error.message}`
-      };
+      });
     }
   }
 
   getStatus() {
-    return this.currentStatus;
+    return useVideoStatusStore.getState().status;
   }
 }
 
+<<<<<<< HEAD
 // Only create the instance if we're in the browser
+=======
+// Only create instance in browser environment
+>>>>>>> gemini-updates
 export const screenVideo = typeof window !== 'undefined' ? new ScreenVideoService() : null;

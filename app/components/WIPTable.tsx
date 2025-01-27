@@ -40,12 +40,10 @@ const formatTime = (hours: number | string): string => {
   return `${displayHours} ${displayHours === 1 ? 'hour' : 'hours'}, ${displayMinutes} min`;
 };
 
-// Format timestamp
-const formatTimestamp = (id: number): string => {
-  const date = new Date(id);
+// Format timestamp to show only time
+const formatTimestamp = (timestamp: number): string => {
+  const date = new Date(timestamp);
   return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
     hour: 'numeric',
     minute: 'numeric',
     hour12: true
@@ -213,7 +211,7 @@ const AnimatedNumberInput = ({
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         className={`
-          w-full h-[34px] border dark:border-dark-border rounded 
+          w-full h-[34px] border dark:border-dark-border rounded-lg 
           focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
           bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 
           transition-all duration-150 ease-in-out
@@ -417,18 +415,18 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-border">
+    <div className="rounded-lg border border-gray-200 dark:border-dark-border">
       <table className="min-w-full bg-white dark:bg-dark-card border-collapse text-sm">
         <thead>
           <tr className="border-b border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg text-gray-700 dark:text-gray-300">
             <th className="p-3 text-left w-[40px]"></th>
             <th className="p-3 text-left min-w-[150px] text-xs">Client</th>
-            <th className="p-3 text-left w-[15%] min-w-[150px] text-xs">Project</th>
-            <th className="p-3 text-left w-[10%] min-w-[100px] text-xs">Partner</th>
-            <th className="p-3 text-left w-[120px] text-xs">{showTimestamp ? 'Time' : 'Duration'}</th>
+            <th className="p-3 text-left w-[15%] min-w-[150px] text-xs">Work Package</th>
+            <th className="p-3 text-left w-[10%] min-w-[100px] text-xs">Employee</th>
+            <th className="p-3 text-left w-[90px] text-xs">Date</th>
+            <th className="p-3 text-left w-[80px] text-xs">Time</th>
             <th className="p-3 text-left w-[70px] text-xs">Rate</th>
             {showTotalCost && <th className="p-3 text-left w-[60px] text-xs">Cost</th>}
-            <th className="p-3 text-left w-[90px] text-xs">Dates</th>
             <th className="p-3 text-left flex-1 min-w-[300px] text-xs">Description</th>
           </tr>
         </thead>
@@ -458,12 +456,12 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                     onChange={(value) => handleEdit(entry, 'client', value)}
                     onBlur={() => handleBlur(entry, 'client')}
                     onKeyDown={(e) => handleKeyDown(e, entry, 'client')}
-                    className="w-full p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                    className="w-full p-1.5 border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
                       bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 text-xs"
                     minRows={1}
                   />
                 ) : (
-                  <div className="py-1 px-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 rounded text-xs whitespace-pre-wrap break-words border dark:border-dark-border">
+                  <div className="py-1 px-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 rounded-lg text-xs whitespace-pre-wrap break-words border dark:border-dark-border">
                     {entry.client}
                   </div>
                 )}
@@ -475,7 +473,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                     onChange={(value) => handleEdit(entry, 'project', value)}
                     onBlur={() => handleBlur(entry, 'project')}
                     onKeyDown={(e) => handleKeyDown(e, entry, 'project')}
-                    className="w-full p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                    className="w-full p-1.5 border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
                       bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
                   />
                 ) : (
@@ -489,11 +487,56 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                     onChange={(value) => handleEdit(entry, 'partner', value)}
                     onBlur={() => handleBlur(entry, 'partner')}
                     onKeyDown={(e) => handleKeyDown(e, entry, 'partner')}
-                    className="w-full p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                    className="w-full h-[34px] p-1.5 border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
                       bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
                   />
                 ) : (
                   <div className="py-1 px-1.5 whitespace-pre-wrap break-words text-xs">{entry.partner}</div>
+                )}
+              </td>
+              <td className="p-3 align-middle">
+                {isEditable ? (
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={(() => {
+                        try {
+                          const date = new Date(entry.startDate);
+                          return date.toISOString().slice(0, 10);
+                        } catch (e) {
+                          return new Date().toISOString().slice(0, 10);
+                        }
+                      })()}
+                      onChange={(e) => {
+                        try {
+                          const newDate = new Date(e.target.value).getTime();
+                          if (!isNaN(newDate)) {
+                            handleEdit(entry, 'startDate', newDate);
+                            handleEdit(entry, 'lastWorkedDate', newDate);
+                            onEntryUpdate({
+                              ...entry,
+                              startDate: newDate,
+                              lastWorkedDate: newDate
+                            });
+                          }
+                        } catch (e) {
+                          console.error('Invalid date:', e);
+                        }
+                      }}
+                      className="w-full h-[34px] p-2 border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                        bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
+                    />
+                  </div>
+                ) : (
+                  <div className="py-1 px-2 whitespace-nowrap h-[34px] flex items-center text-xs">
+                    {(() => {
+                      try {
+                        return formatDateRange(entry.startDate, entry.lastWorkedDate);
+                      } catch (e) {
+                        return 'Invalid Date';
+                      }
+                    })()}
+                  </div>
                 )}
               </td>
               <td className="p-3 align-middle min-w-[100px]">
@@ -509,7 +552,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                       }}
                       onBlur={() => handleBlur(entry, 'timeInMinutes')}
                       onKeyDown={(e) => handleKeyDown(e, entry, 'timeInMinutes')}
-                      className="w-full h-[34px] p-2 pr-[45px] min-w-[70px] border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                      className="w-full h-[34px] p-2 pr-[45px] min-w-[70px] border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
                         bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-left pl-2"
                       min="0"
                     />
@@ -569,7 +612,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   </div>
                 ) : (
                   <div className="py-1 px-2 text-xs">
-                    {showTimestamp ? formatTimestamp(entry.id) : formatTime(getTimeInMinutes(entry) / 60)}
+                    {showTimestamp ? formatTimestamp(entry.startDate) : formatTime(getTimeInMinutes(entry) / 60)}
                   </div>
                 )}
               </td>
@@ -602,7 +645,8 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                         });
                       }
                     }}
-                    className="min-w-[80px]"
+                    className="w-full h-[34px] p-2 pl-5 pr-8 min-w-[80px] max-w-[100px] border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                      bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right"
                   />
                 ) : (
                   <div className="py-1 px-2 flex items-center text-xs">{formatCurrency(entry.hourlyRate)}</div>
@@ -615,51 +659,6 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   </div>
                 </td>
               )}
-              <td className="p-3 align-middle">
-                {isEditable ? (
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={(() => {
-                        try {
-                          const date = new Date(entry.startDate);
-                          return date.toISOString().slice(0, 10);
-                        } catch (e) {
-                          return new Date().toISOString().slice(0, 10);
-                        }
-                      })()}
-                      onChange={(e) => {
-                        try {
-                          const newDate = new Date(e.target.value).getTime();
-                          if (!isNaN(newDate)) {
-                            handleEdit(entry, 'startDate', newDate);
-                            handleEdit(entry, 'lastWorkedDate', newDate);
-                            onEntryUpdate({
-                              ...entry,
-                              startDate: newDate,
-                              lastWorkedDate: newDate
-                            });
-                          }
-                        } catch (e) {
-                          console.error('Invalid date:', e);
-                        }
-                      }}
-                      className="w-full h-[34px] p-2 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
-                        bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-150 text-xs"
-                    />
-                  </div>
-                ) : (
-                  <div className="py-1 px-2 whitespace-nowrap h-[34px] flex items-center text-xs">
-                    {(() => {
-                      try {
-                        return formatDateRange(entry.startDate, entry.lastWorkedDate);
-                      } catch (e) {
-                        return 'Invalid Date';
-                      }
-                    })()}
-                  </div>
-                )}
-              </td>
               <td className="p-3 align-top w-full">
                 <div className="space-y-4">
                   {/* Main description */}
@@ -669,7 +668,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                       onChange={(value) => handleEdit(entry, 'description', value)}
                       onBlur={() => handleBlur(entry, 'description')}
                       onKeyDown={(e) => handleKeyDown(e, entry, 'description')}
-                      className="w-full p-1.5 border dark:border-dark-border rounded focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
+                      className="w-full p-1.5 border dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600
                         bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 leading-normal transition-colors duration-150 text-xs"
                       minRows={2}
                     />

@@ -12,7 +12,7 @@ interface Activity {
 }
 
 export async function summarizeOneMinuteActivities(activities: Activity[]) {
-  const model = client.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+  const model = client.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp" });
   
   const contents = activities.map(activity => {
     const parts: any[] = [{ text: activity.text }];
@@ -40,7 +40,7 @@ export async function summarizeFifteenMinutes(summaries: string[]) {
 
 export async function analyze(prompt: string): Promise<string> {
   try {
-    const model = client.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = client.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();

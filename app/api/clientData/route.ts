@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientWithProjects } from "@/src/backend/services/timeEntryService";
 
+<<<<<<< HEAD
+=======
+// Mark route as dynamic
+>>>>>>> gemini-updates
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
