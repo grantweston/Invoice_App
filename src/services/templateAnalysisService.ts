@@ -1,14 +1,13 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-<<<<<<< HEAD
-import { Template } from '@/src/services/templateService';
-=======
 import { Template } from '../store/invoiceStore';
->>>>>>> gemini-updates
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export interface AnalyzedTemplate extends Template {
   content: string;
+  mimeType: string;
+  createdTime: string;
+  webViewLink: string;
   placeholders: {
     client: string[];
     project: string[];
