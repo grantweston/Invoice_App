@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useWIPStore } from '@/src/store/wipEntries';
+import { useWIPStore } from '@/src/store/wipStore';
 import { useGeneratedInvoices } from '@/src/store/generatedInvoicesStore';
 import DocGenerator from '../../components/DocGenerator';
 import { WIPEntry } from '@/src/types';
 import FileDropZone from '@/app/components/FileDropZone';
+import { formatTime } from '@/src/utils/time';
 
 interface ProjectData {
   entries: WIPEntry[];
@@ -26,7 +27,8 @@ export default function GenerateInvoicePage() {
   const [analyzedWIPData, setAnalyzedWIPData] = useState<any>(null);
   const wipEntries = useWIPStore((state) => state.entries);
   const addInvoice = useGeneratedInvoices((state) => state.addInvoice);
-  const appendWIPData = useWIPStore((state) => state.appendWIPData);
+  const addEntries = useWIPStore((state) => state.addEntries);
+  const removeEntry = useWIPStore((state) => state.removeEntry);
 
   // Format currency helper
   const formatCurrency = (amount: number): string => {
@@ -36,33 +38,11 @@ export default function GenerateInvoicePage() {
     }).format(amount);
   };
 
-  // Format time helper
-  const formatTime = (hours: number): string => {
-    // Convert hours to minutes, handling both decimal hours and hour:minute format
-    const totalMinutes = Math.round(hours * 60);
-    
-    // Calculate hours and remaining minutes
-    const displayHours = Math.floor(totalMinutes / 60);
-    const displayMinutes = totalMinutes % 60;
-    
-    // Format the output
-    if (totalMinutes === 0) return '0 min';
-    if (displayHours === 0) return `${displayMinutes} min`;
-    if (displayMinutes === 0) return `${displayHours} ${displayHours === 1 ? 'hour' : 'hours'}`;
-    return `${displayHours} ${displayHours === 1 ? 'hour' : 'hours'}, ${displayMinutes} min`;
-  };
-
   const handleWIPFileAnalyzed = async (data: any) => {
     setIsAnalyzingWIP(true);
     try {
-      console.log('Received analyzed WIP data:', data);
-      
-      // Append the raw WIP data instead of overwriting
-      appendWIPData({
-        entries: data,
-        totalHours: data.reduce((sum: number, entry: any) => sum + (entry.timeInMinutes / 60), 0),
-        totalAmount: data.reduce((sum: number, entry: any) => sum + entry.amount, 0)
-      });
+      // Add the entries to WIP store
+      addEntries(data);
       
       // Group by client and project for display
       if (Array.isArray(data)) {
@@ -88,10 +68,11 @@ export default function GenerateInvoicePage() {
           acc[clientId].projects[projectName].entries.push(entry);
           
           const hours = entry.timeInMinutes / 60;
+          const amount = hours * entry.hourlyRate;
           acc[clientId].projects[projectName].totalHours += hours;
-          acc[clientId].projects[projectName].totalAmount += entry.amount;
+          acc[clientId].projects[projectName].totalAmount += amount;
           acc[clientId].totalHours += hours;
-          acc[clientId].totalAmount += entry.amount;
+          acc[clientId].totalAmount += amount;
           
           return acc;
         }, {});
@@ -112,7 +93,6 @@ export default function GenerateInvoicePage() {
     setGeneratingInvoices(prev => ({ ...prev, [clientName]: true }));
     try {
       const entries = Object.values(data.projects).flatMap(p => p.entries);
-      // Generate invoice for client
       const response = await fetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,40 +104,28 @@ export default function GenerateInvoicePage() {
       });
 
       const result = await response.json();
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      if (result.error) throw new Error(result.error);
+      if (!result.documentId) throw new Error('No document ID returned');
 
-      // Add to generated invoices store
       const totalAmount = entries.reduce((sum, entry) => 
-        sum + ((entry.timeInMinutes || 0) / 60 * entry.hourlyRate), 0
+        sum + (entry.timeInMinutes / 60) * entry.hourlyRate, 0
       );
       
-      // Check if we have the documentId in the response
-      if (!result.documentId) {
-        throw new Error('No document ID returned from server');
-      }
-      
-      try {
-        addInvoice({
-          id: result.documentId,
-          googleDocId: result.documentId,
-          client: clientName,
-          project: Object.keys(data.projects || {})[0] || entries[0]?.project || 'Unknown', // Fallback to first entry's project or 'Unknown'
-          date: new Date().toISOString(),
-          amount: totalAmount,
-          wipEntries: entries.map(entry => ({
-            ...entry,
-            associatedDailyIds: entry.associatedDailyIds?.map(id => Number(id)) || []
-          })),
-          dailyActivities: [],
-          wip: totalAmount
-        });
-        window.location.href = '/invoices';
-      } catch (error) {
-        console.error('Error adding invoice to store:', error);
-        throw new Error('Failed to save invoice data');
-      }
+      addInvoice({
+        id: result.documentId,
+        googleDocId: result.documentId,
+        client: clientName,
+        project: Object.keys(data.projects)[0] || entries[0]?.project || 'Unknown',
+        date: new Date().toISOString(),
+        amount: totalAmount,
+        wipEntries: entries.map(entry => ({
+          ...entry,
+          associatedDailyIds: entry.associatedDailyIds?.map(id => Number(id)) || []
+        })),
+        dailyActivities: [],
+        wip: totalAmount
+      });
+      window.location.href = '/invoices';
     } catch (error) {
       console.error('Failed to generate invoice:', error);
       alert('Failed to generate invoice. Please try again.');
@@ -169,25 +137,12 @@ export default function GenerateInvoicePage() {
   const handleGenerateInvoiceFromWIP = async (clientName: string, data: ClientData) => {
     setGeneratingInvoices(prev => ({ ...prev, [clientName]: true }));
     try {
-      const entries = Object.values(data.projects).flatMap(p => p.entries);
+      // Get entries with their pre-calculated amounts
+      const entries = Object.values(data.projects).flatMap((p: any) => p.entries);
       
-      // Get all daily log IDs associated with these entries
-      const dailyLogIds = new Set(entries.flatMap(entry => 
-        entry.associatedDailyIds || []
-      ));
-      
-      // Calculate total amount and hours from entries using the exact values from Excel
-      let totalAmount = 0;
-      let totalHours = 0;
-      
-      entries.forEach(entry => {
-        const amount = (entry as any).amount || 0;
-        const hours = (entry as any).timeInMinutes ? (entry as any).timeInMinutes / 60 : 0;
-        console.log(`Entry: ${entry.description || 'Unknown'}`);
-        console.log(`Amount: ${amount}, Hours: ${hours}`);
-        totalAmount += amount;
-        totalHours += hours;
-      });
+      // Use the pre-calculated totals from the data
+      const totalHours = data.totalHours;
+      const totalAmount = data.totalAmount;
       
       console.log('\nSummary:');
       console.log('Total amount:', totalAmount);
@@ -201,12 +156,12 @@ export default function GenerateInvoicePage() {
           client: clientName,
           entries: entries.map(entry => ({
             ...entry,
-            amount: (entry as any).amount || 0,
-            timeInMinutes: (entry as any).timeInMinutes || 0
+            timeInMinutes: entry.timeInMinutes || 0,
+            amount: (entry.timeInMinutes / 60) * entry.hourlyRate // Ensure amount is set
           })),
-          date: new Date().toISOString(),
-          amount: totalAmount,
-          totalHours: totalHours
+          totalAmount, // Pass the pre-calculated total
+          totalHours, // Pass the pre-calculated hours
+          date: new Date().toISOString()
         })
       });
 
@@ -241,6 +196,17 @@ export default function GenerateInvoicePage() {
     }
   };
 
+  const handleDeleteWIPEntries = (clientName: string, data: ClientData) => {
+    if (window.confirm(`Are you sure you want to delete all WIP entries for ${clientName}?`)) {
+      // Delete all entries for this client
+      Object.values(data.projects).forEach(project => {
+        project.entries.forEach(entry => {
+          removeEntry(entry.id);
+        });
+      });
+    }
+  };
+
   // Group entries by client
   const clientProjects = wipEntries.reduce((acc, entry) => {
     console.log('\nProcessing entry:', entry);
@@ -263,14 +229,13 @@ export default function GenerateInvoicePage() {
       };
     }
     
-    const timeInMinutes = entry.timeInMinutes || 0;
-    const hours = timeInMinutes / 60;
-    const amount = hours * entry.hourlyRate;
+    const hrs = entry.timeInMinutes / 60;
+    const amt = hrs * entry.hourlyRate;
     
     console.log('Entry details:');
-    console.log('- Time in minutes:', timeInMinutes);
-    console.log('- Hours:', hours);
-    console.log('- Amount:', amount);
+    console.log('- Time in minutes:', entry.timeInMinutes);
+    console.log('- Hours:', hrs);
+    console.log('- Amount:', amt);
     
     acc[entry.client].projects[entry.project].entries.push({
       ...entry,
@@ -284,16 +249,16 @@ export default function GenerateInvoicePage() {
     });
     
     // Update project totals
-    acc[entry.client].projects[entry.project].totalHours += hours;
-    acc[entry.client].projects[entry.project].totalAmount += amount;
+    acc[entry.client].projects[entry.project].totalHours += hrs;
+    acc[entry.client].projects[entry.project].totalAmount += amt;
     
     console.log('Project totals after update:');
     console.log('- Project hours:', acc[entry.client].projects[entry.project].totalHours);
     console.log('- Project amount:', acc[entry.client].projects[entry.project].totalAmount);
     
     // Update client totals
-    acc[entry.client].totalHours += hours;
-    acc[entry.client].totalAmount += amount;
+    acc[entry.client].totalHours += hrs;
+    acc[entry.client].totalAmount += amt;
     
     console.log('Client totals after update:');
     console.log('- Client hours:', acc[entry.client].totalHours);
@@ -361,36 +326,49 @@ export default function GenerateInvoicePage() {
                 </span>
               </p>
             </div>
-            <button
-              onClick={() => isFromExcel ? 
-                handleGenerateInvoiceFromWIP(clientName, data) : 
-                handleGenerateInvoice(clientName, data)
-              }
-              disabled={generatingInvoices[clientName]}
-              className={`${
-                generatingInvoices[clientName] 
-                  ? 'opacity-50 cursor-not-allowed'
-                  : 'hover:bg-blue-200 dark:hover:bg-blue-500/50 hover:border-blue-400 dark:hover:border-blue-500/50 hover:scale-105'
-              } bg-blue-100 dark:bg-blue-500/40
-                text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-500/40 
-                px-4 py-1.5 rounded-lg text-xs h-[38px] flex items-center gap-1.5 transition-all duration-150 shadow-lg`}
-            >
-              {generatingInvoices[clientName] ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Generate Invoice
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleDeleteWIPEntries(clientName, data)}
+                className="bg-red-100 dark:bg-red-500/40 text-red-700 dark:text-red-200 border border-red-300 dark:border-red-500/40 
+                  px-4 py-1.5 rounded-lg text-xs h-[38px] flex items-center gap-1.5 transition-all duration-150 shadow-lg
+                  hover:bg-red-200 dark:hover:bg-red-500/50 hover:border-red-400 dark:hover:border-red-500/50 hover:scale-105"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+              <button
+                onClick={() => isFromExcel ? 
+                  handleGenerateInvoiceFromWIP(clientName, data) : 
+                  handleGenerateInvoice(clientName, data)
+                }
+                disabled={generatingInvoices[clientName]}
+                className={`${
+                  generatingInvoices[clientName] 
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:bg-blue-200 dark:hover:bg-blue-500/50 hover:border-blue-400 dark:hover:border-blue-500/50 hover:scale-105'
+                } bg-blue-100 dark:bg-blue-500/40
+                  text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-500/40 
+                  px-4 py-1.5 rounded-lg text-xs h-[38px] flex items-center gap-1.5 transition-all duration-150 shadow-lg`}
+              >
+                {generatingInvoices[clientName] ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Generate Invoice
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 space-y-3">

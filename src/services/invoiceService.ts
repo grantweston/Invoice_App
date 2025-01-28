@@ -36,8 +36,11 @@ interface InvoiceData {
     description: string;
     timeInMinutes: number;
     hourlyRate: number;
+    amount: number;
     date?: string;
   }>;
+  totalAmount?: number;
+  totalHours?: number;
   userSettings?: {
     userName?: string;
     hourlyRate?: number;
@@ -48,6 +51,7 @@ interface LogEntry {
   description: string;
   timeInMinutes: number;
   hourlyRate: number;
+  amount: number;
   date: string;
   category?: string;
 }
@@ -334,15 +338,48 @@ Return ONLY a JSON array of Google Docs API requests. No other text or explanati
   },
 
   async analyzeLogEntries(logEntries: LogEntry[]): Promise<AnalyzedInvoiceData> {
+    // Calculate totals from pre-calculated amounts if available
+    const totalAmount = logEntries.reduce((sum, entry) => sum + entry.amount, 0);
+    const totalHours = logEntries.reduce((sum, entry) => sum + (entry.timeInMinutes / 60), 0);
+
+    console.log('\nInvoice Service Calculations:');
+    console.log('Total entries:', logEntries.length);
+    console.log('Total hours calculated:', totalHours.toFixed(1));
+    console.log('Total amount calculated:', totalAmount.toFixed(2));
+    
+    // Log each entry's contribution to total
+    logEntries.forEach((entry, i) => {
+      console.log(`\nEntry ${i + 1}:`);
+      console.log('Time in minutes:', entry.timeInMinutes);
+      console.log('Hours:', (entry.timeInMinutes / 60).toFixed(1));
+      console.log('Amount:', entry.amount.toFixed(2));
+    });
+
     const logAnalysisPrompt = `You are a senior billing specialist at a consulting firm. Your task is to analyze work logs and organize them into a clear, professional invoice structure.
+
+CRITICAL REQUIREMENTS:
+1. The total hours MUST be EXACTLY ${totalHours.toFixed(1)} - this is non-negotiable
+2. Each category's hours must sum EXACTLY to the hours of its entries
+3. DO NOT round any hour values
+4. Use exact decimal places for hours (e.g. 6.2 not 6.0)
+5. Category totals MUST sum to ${totalHours.toFixed(1)}
+6. The total amount MUST be exactly $${totalAmount.toFixed(2)}
+
+GROUPING RULES:
+1. Group entries by their "project" field exactly as provided
+2. Use the exact hours from entries - no rounding
+3. Preserve all decimal places in hour calculations
+4. Double-check that category hours sum correctly
+5. Verify total matches ${totalHours.toFixed(1)} before returning
 
 INPUT:
 These are daily work logs containing:
 - Task descriptions
 - Time spent (in minutes)
 - Hourly rates
+- Pre-calculated amounts
 - Dates
-- Other relevant details
+- Project categories
 
 ANALYSIS STEPS:
 1. First, identify the major project components:
@@ -375,11 +412,11 @@ ANALYSIS STEPS:
        }
      ],
      "summary": {
-       "totalHours": "10.5",
-       "totalAmount": "$1,050.00",
-       "periodStart": "2024-01-01",
-       "periodEnd": "2024-01-31",
-       "mainDeliverables": ["Feature A", "Documentation"]
+       "totalHours": "${totalHours.toFixed(1)}",
+       "totalAmount": "$${totalAmount.toFixed(2)}",
+       "periodStart": "${new Date(Math.min(...logEntries.map(e => new Date(e.date).getTime()))).toISOString().split('T')[0]}",
+       "periodEnd": "${new Date(Math.max(...logEntries.map(e => new Date(e.date).getTime()))).toISOString().split('T')[0]}",
+       "mainDeliverables": []
      }
    }
 
@@ -433,6 +470,10 @@ Think like a billing professional who needs to:
         analyzedData = JSON.parse(jsonMatch[0]);
         console.log('✅ Successfully extracted and parsed log analysis');
       }
+
+      // Ensure the totals match exactly
+      analyzedData.summary.totalHours = totalHours.toFixed(1);
+      analyzedData.summary.totalAmount = `$${totalAmount.toFixed(2)}`;
 
       return analyzedData;
     } catch (error) {
