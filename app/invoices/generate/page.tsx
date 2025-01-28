@@ -54,34 +54,51 @@ export default function GenerateInvoicePage() {
   const handleWIPFileAnalyzed = async (data: any) => {
     setIsAnalyzingWIP(true);
     try {
-      const response = await fetch('/api/wip/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wipData: data })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to analyze WIP data');
-      }
-      
-      const analyzedData = await response.json();
-      console.log('Analyzed WIP data:', analyzedData.data);
+      // Data is already analyzed from FileDropZone, just use it directly
+      console.log('Received analyzed WIP data:', data);
       
       // Log hours for each project
-      Object.entries(analyzedData.data).forEach(([clientId, clientData]: [string, any]) => {
-        console.log(`\nClient ${clientId} hours:`);
-        Object.entries(clientData.projects).forEach(([serviceType, projectData]: [string, any]) => {
-          console.log(`${serviceType}: ${projectData.totalHours} hours`);
-          projectData.entries.forEach((entry: any) => {
-            console.log(`  ${entry.description}: ${entry.timeInMinutes/60} hours`);
-          });
-        });
-      });
-      
-      setAnalyzedWIPData(analyzedData.data);
+      if (Array.isArray(data)) {
+        // Group by client and project
+        const groupedData = data.reduce((acc, entry) => {
+          const clientId = entry.client;
+          if (!acc[clientId]) {
+            acc[clientId] = {
+              projects: {},
+              totalAmount: 0,
+              totalHours: 0
+            };
+          }
+          
+          const projectName = entry.project;
+          if (!acc[clientId].projects[projectName]) {
+            acc[clientId].projects[projectName] = {
+              entries: [],
+              totalHours: 0,
+              totalAmount: 0
+            };
+          }
+          
+          // Add entry
+          acc[clientId].projects[projectName].entries.push(entry);
+          
+          // Update totals
+          const hours = entry.timeInMinutes / 60;
+          acc[clientId].projects[projectName].totalHours += hours;
+          acc[clientId].projects[projectName].totalAmount += entry.amount;
+          acc[clientId].totalHours += hours;
+          acc[clientId].totalAmount += entry.amount;
+          
+          return acc;
+        }, {});
+
+        setAnalyzedWIPData(groupedData);
+      } else {
+        throw new Error('Invalid data format received');
+      }
     } catch (error) {
-      console.error('Error analyzing WIP file:', error);
-      alert('Failed to analyze WIP file. Please try again.');
+      console.error('Error processing WIP data:', error);
+      alert('Failed to process WIP data. Please try again.');
     } finally {
       setIsAnalyzingWIP(false);
     }

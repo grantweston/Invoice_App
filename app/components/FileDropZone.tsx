@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 
@@ -10,6 +10,7 @@ export default function FileDropZone({ onFileAnalyzed }: FileDropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingStep, setProcessingStep] = useState<string>('');
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -18,28 +19,97 @@ export default function FileDropZone({ onFileAnalyzed }: FileDropZoneProps) {
     try {
       setIsProcessing(true);
       setError(null);
+      setProcessingStep('Reading file...');
 
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
+          setProcessingStep('Parsing Excel data...');
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
           
-          onFileAnalyzed(jsonData);
-        } catch (err) {
-          setError('Failed to process Excel file. Please make sure it\'s a valid WIP report.');
+          // Try to find a sheet with WIP data
+          const sheetName = workbook.SheetNames.find(name => 
+            name.toLowerCase().includes('wip') || 
+            name.toLowerCase().includes('work') ||
+            name.toLowerCase().includes('time')
+          ) || workbook.SheetNames[0];
+          
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+            raw: true,
+            defval: null, // Use null for empty cells
+            blankrows: false // Skip blank rows
+          });
+
+          if (!jsonData || jsonData.length === 0) {
+            throw new Error('No data found in the Excel file. Please make sure the file contains data.');
+          }
+
+          setProcessingStep('Analyzing data structure...');
+          console.log('Excel data:', jsonData);
+          
+          // First parse the Excel data
+          setProcessingStep('Processing with AI...');
+          const parseResponse = await fetch('/api/excel-parse', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(jsonData)
+          });
+
+          if (!parseResponse.ok) {
+            const errorData = await parseResponse.json();
+            throw new Error(errorData.error || 'Failed to process Excel file');
+          }
+
+          const entries = await parseResponse.json();
+          
+          if (!Array.isArray(entries) || entries.length === 0) {
+            throw new Error('No valid entries found in the file. Please check the file format.');
+          }
+
+          // Now analyze the parsed data
+          setProcessingStep('Analyzing WIP data...');
+          const analyzeResponse = await fetch('/api/wip/analyze', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(entries)
+          });
+
+          if (!analyzeResponse.ok) {
+            const errorData = await analyzeResponse.json();
+            throw new Error(errorData.error || 'Failed to analyze WIP data');
+          }
+
+          const analyzedData = await analyzeResponse.json();
+          
+          if (!analyzedData.success || !analyzedData.data) {
+            throw new Error('Failed to analyze WIP data');
+          }
+
+          // Pass the analyzed data to parent
+          onFileAnalyzed(analyzedData.data);
+          setProcessingStep('');
+        } catch (err: any) {
           console.error('Error processing file:', err);
+          setError(err.message || 'Failed to process Excel file. Please make sure it\'s a valid data file.');
         } finally {
           setIsProcessing(false);
         }
       };
 
+      reader.onerror = () => {
+        setError('Failed to read the file. Please try again.');
+        setIsProcessing(false);
+      };
+
       reader.readAsArrayBuffer(file);
     } catch (err) {
-      setError('Failed to read file');
+      setError('Failed to process the file. Please try again.');
       setIsProcessing(false);
     }
   }, [onFileAnalyzed]);
@@ -52,49 +122,42 @@ export default function FileDropZone({ onFileAnalyzed }: FileDropZoneProps) {
     },
     multiple: false,
     onDragEnter: () => setIsDragging(true),
-    onDragLeave: () => setIsDragging(false),
-    onDropAccepted: () => setIsDragging(false)
+    onDragLeave: () => setIsDragging(false)
   });
 
   return (
     <div 
       {...getRootProps()} 
-      className={`
-        relative p-8 border-2 border-dashed rounded-xl transition-all duration-200
+      className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all
         ${isDragging 
           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-          : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
+          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
         }
       `}
     >
       <input {...getInputProps()} />
-      <div className="text-center">
-        {isProcessing ? (
-          <div className="space-y-3">
-            <svg className="w-8 h-8 mx-auto text-blue-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Processing Excel file...</p>
-          </div>
-        ) : (
-          <>
-            <svg className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Drop your WIP Excel file here, or click to select
+      {isProcessing ? (
+        <div className="flex flex-col items-center space-y-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {processingStep || 'Processing file...'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Drop any Excel file here, or click to select
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Our AI will analyze the data structure automatically
+          </p>
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-2 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+              {error}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-500">
-              Supports .xlsx and .xls files
-            </p>
-          </>
-        )}
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 } 
