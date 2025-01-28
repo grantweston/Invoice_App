@@ -23,10 +23,10 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
   const wipEntries = useWIPStore(state => state.entries);
   const { documentAmount } = useGoogleDocSync(params.id);
 
-  // Calculate WIP total
-  const wipTotal = invoice?.wipEntries.reduce((total, entry) => {
-    const timeInHours = (entry.timeInMinutes || 0) / 60;
-    return total + (timeInHours * entry.hourlyRate);
+  // Calculate WIP total from timeInMinutes
+  const wipTotal = invoice?.wipEntries?.reduce((total, entry) => {
+    const minutes = entry.timeInMinutes;
+    return total + (minutes / 60) * entry.hourlyRate;
   }, 0) || 0;
 
   // Calculate other amounts

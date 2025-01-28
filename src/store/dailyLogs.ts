@@ -2,13 +2,10 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { WIPEntry } from '@/src/types';
 
-// Add helper function
-const getTimeInMinutes = (entry: WIPEntry): number => {
-  if (typeof entry.timeInMinutes === 'number') {
-    return entry.timeInMinutes;
-  }
-  return entry.hours ? Math.round(entry.hours * 60) : 0;
-};
+// Helper function to ensure numeric timeInMinutes
+function getTimeInMinutes(entry: WIPEntry): number {
+  return entry.timeInMinutes;
+}
 
 interface DailyLogsState {
   logs: WIPEntry[];
@@ -24,66 +21,53 @@ export const useDailyLogs = create<DailyLogsState>()(
     (set) => ({
       logs: [],
       addLog: (entry) => {
-        console.log('📝 Adding to daily logs:', entry);
-        // Ensure both time formats are set
-        const newEntry = {
+        // Force a numeric timeInMinutes
+        const corrected = {
           ...entry,
           timeInMinutes: getTimeInMinutes(entry),
-          hours: getTimeInMinutes(entry) / 60
         };
-        set((state) => {
-          const newLogs = [...state.logs, newEntry];
-          console.log('📊 Updated daily logs:', newLogs);
-          return { logs: newLogs };
-        });
+        set((state) => ({ logs: [...state.logs, corrected] }));
       },
       clearLogs: () => {
-        console.log('🧹 Clearing daily logs');
         set({ logs: [] });
       },
       updateMatchingLogs: (oldEntry, newEntry) => {
         set((state) => {
-          const updatedLogs = state.logs.map(log => {
-            // Match based on client and project
+          const updated = state.logs.map((log) => {
             if (log.client === oldEntry.client && log.project === oldEntry.project) {
               return {
                 ...log,
                 client: newEntry.client,
                 project: newEntry.project,
-                description: log.description,
-                partner: log.partner,
-                hourlyRate: log.hourlyRate,
                 timeInMinutes: getTimeInMinutes(log),
-                hours: getTimeInMinutes(log) / 60
               };
             }
             return log;
           });
-          return { logs: updatedLogs };
+          return { logs: updated };
         });
       },
       setLogs: (logs) => {
-        console.log('📊 Setting daily logs:', logs);
-        // Ensure both time formats are set for all logs
-        const updatedLogs = logs.map(log => ({
-          ...log,
-          timeInMinutes: getTimeInMinutes(log),
-          hours: getTimeInMinutes(log) / 60
+        // Ensure each entry has a numeric timeInMinutes
+        const corrected = logs.map((l) => ({
+          ...l,
+          timeInMinutes: getTimeInMinutes(l),
         }));
-        set({ logs: updatedLogs });
+        set({ logs: corrected });
       },
       deleteLogs: (entryToDelete) => {
-        console.log('🗑️ Deleting logs matching:', entryToDelete);
         set((state) => {
-          const updatedLogs = state.logs.filter(log => 
-            !(log.client === entryToDelete.client && log.project === entryToDelete.project)
+          const updated = state.logs.filter(
+            (log) =>
+              !(
+                log.client === entryToDelete.client &&
+                log.project === entryToDelete.project
+              )
           );
-          return { logs: updatedLogs };
+          return { logs: updated };
         });
       },
     }),
-    {
-      name: 'daily-logs-storage',
-    }
+    { name: 'daily-logs-storage' }
   )
 ); 

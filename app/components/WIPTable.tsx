@@ -3,6 +3,7 @@
 import type { WIPEntry } from "@/src/types";
 import { useEffect, useRef, useState } from 'react';
 import EmptyState from './EmptyState';
+import { formatTime } from '@/src/utils/time';
 
 interface WIPTableProps {
   entries: WIPEntry[];
@@ -13,32 +14,6 @@ interface WIPTableProps {
   showTimestamp?: boolean;
   showTotalCost?: boolean;
 }
-
-// Format hours into hours and minutes
-const formatTime = (hours: number | string): string => {
-  // Convert string input to number if needed
-  const numericHours = typeof hours === 'string' ? parseFloat(hours) : hours;
-  
-  // Convert hours to minutes (1 hour = 60 minutes)
-  const totalMinutes = Math.round(numericHours * 60);
-  
-  if (totalMinutes === 0) {
-    return '0 min';
-  }
-  
-  // Calculate hours and remaining minutes
-  const displayHours = Math.floor(totalMinutes / 60);
-  const displayMinutes = totalMinutes % 60;
-  
-  // Format the output
-  if (displayHours === 0) {
-    return `${displayMinutes} min`;
-  }
-  if (displayMinutes === 0) {
-    return displayHours === 1 ? '1 hour' : `${displayHours} hours`;
-  }
-  return `${displayHours} ${displayHours === 1 ? 'hour' : 'hours'}, ${displayMinutes} min`;
-};
 
 // Format timestamp to show only time
 const formatTimestamp = (timestamp: number): string => {
@@ -58,18 +33,14 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Add this helper function at the top with other helpers
-const getTimeInMinutes = (entry: WIPEntry): number => {
-  if (typeof entry.timeInMinutes === 'number') {
-    return entry.timeInMinutes;
-  }
-  return entry.hours ? Math.round(entry.hours * 60) : 0;
-};
+// Return minutes from WIPEntry
+function getTimeInMinutes(entry: WIPEntry): number {
+  return entry.timeInMinutes;
+}
 
 const setTimeInMinutes = (entry: WIPEntry, minutes: number): Partial<WIPEntry> => {
   return {
-    timeInMinutes: minutes,
-    hours: minutes / 60
+    timeInMinutes: minutes
   };
 };
 
@@ -345,10 +316,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
     
     if (field === 'timeInMinutes') {
       const minutes = parseInt(value as string) || 0;
-      Object.assign(updatedEntry, {
-        timeInMinutes: minutes,
-        hours: minutes / 60
-      });
+      handleEdit(entry, 'timeInMinutes', minutes);
     } else if (field === 'hourlyRate') {
       updatedEntry.hourlyRate = parseFloat(value as string) || 0;
     } else if (field === 'client') {
@@ -540,15 +508,14 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                 )}
               </td>
               <td className="p-3 align-middle min-w-[100px]">
-                {isEditable && !showTimestamp ? (
+                {isEditable ? (
                   <div className="relative">
                     <input
                       type="number"
-                      value={getCurrentValue(entry, 'timeInMinutes') ?? getTimeInMinutes(entry)}
+                      value={getCurrentValue(entry, 'timeInMinutes')}
                       onChange={(e) => {
                         const minutes = parseInt(e.target.value) || 0;
                         handleEdit(entry, 'timeInMinutes', minutes);
-                        handleEdit(entry, 'hours', minutes / 60);
                       }}
                       onBlur={() => handleBlur(entry, 'timeInMinutes')}
                       onKeyDown={(e) => handleKeyDown(e, entry, 'timeInMinutes')}
@@ -568,12 +535,10 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                           const updatedEntry = {
                             ...entry,
                             timeInMinutes: newValue,
-                            hours: newValue / 60
                           };
                           setEditingValues(prev => ({
                             ...prev,
                             [`${entry.id}-timeInMinutes`]: newValue,
-                            [`${entry.id}-hours`]: newValue / 60
                           }));
                           onEntryUpdate(updatedEntry);
                         }}
@@ -592,12 +557,10 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                             const updatedEntry = {
                               ...entry,
                               timeInMinutes: newValue,
-                              hours: newValue / 60
                             };
                             setEditingValues(prev => ({
                               ...prev,
                               [`${entry.id}-timeInMinutes`]: newValue,
-                              [`${entry.id}-hours`]: newValue / 60
                             }));
                             onEntryUpdate(updatedEntry);
                           }
@@ -612,7 +575,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
                   </div>
                 ) : (
                   <div className="py-1 px-2 text-xs">
-                    {showTimestamp ? formatTimestamp(entry.startDate) : formatTime(getTimeInMinutes(entry) / 60)}
+                    {showTimestamp ? formatTimestamp(entry.startDate) : formatTime(entry.timeInMinutes)}
                   </div>
                 )}
               </td>
@@ -655,7 +618,7 @@ export default function WIPTable({ entries = [], onEntryUpdate, onDelete, onBlur
               {showTotalCost && (
                 <td className="p-3 align-middle">
                   <div className="py-1 px-2 flex items-center font-medium text-gray-900 dark:text-gray-100 text-xs">
-                    {formatCurrency((getTimeInMinutes(entry) / 60) * entry.hourlyRate)}
+                    {formatCurrency((entry.timeInMinutes / 60) * entry.hourlyRate)}
                   </div>
                 </td>
               )}

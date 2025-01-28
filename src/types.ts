@@ -10,8 +10,7 @@ export interface WIPEntry {
   id: number;
   client: string;
   project: string;
-  hours?: number;
-  timeInMinutes?: number;
+  timeInMinutes: number;   // single source of truth for duration
   description: string;
   partner: string;
   hourlyRate: number;

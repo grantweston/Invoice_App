@@ -9,6 +9,7 @@ interface WIPState {
   setWIPData: (data: { entries: WIPEntry[]; totalHours: number; totalAmount: number }) => void;
   appendWIPData: (data: { entries: WIPEntry[]; totalHours: number; totalAmount: number }) => void;
   clearWIPData: () => void;
+  deleteEntry: (entryId: number) => void;
 }
 
 export const useWIPStore = create<WIPState>()(
@@ -24,6 +25,20 @@ export const useWIPStore = create<WIPState>()(
         totalAmount: state.totalAmount + data.totalAmount,
       })),
       clearWIPData: () => set({ entries: [], totalHours: 0, totalAmount: 0 }),
+      deleteEntry: (entryId) => set((state) => {
+        const entryToDelete = state.entries.find(e => e.id === entryId);
+        if (!entryToDelete) return state;
+
+        const timeInMinutes = entryToDelete.timeInMinutes || 0;
+        const hours = timeInMinutes / 60;
+        const amount = hours * (entryToDelete.hourlyRate || 0);
+
+        return {
+          entries: state.entries.filter(e => e.id !== entryId),
+          totalHours: state.totalHours - hours,
+          totalAmount: state.totalAmount - amount,
+        };
+      }),
     }),
     {
       name: 'wip-entries-storage',
