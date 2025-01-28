@@ -30,8 +30,7 @@ const nextConfig = {
     return config;
   },
   experimental: {
-    // Disable file tracing completely to avoid the stack overflow
-    outputFileTracing: false
+    serverComponentsExternalPackages: ['sharp', 'gm', 'pdf2pic', 'archiver', 'unzipper', 'exceljs', 'googleapis', 'google-auth-library']
   },
   // Add more logging options
   onDemandEntries: {
