@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
 // Helper function to clean Gemini's response and extract JSON
 function extractJSON(text: string): any {
@@ -33,19 +33,95 @@ function validateEntries(entries: any[]): boolean {
     return false;
   }
 
-  return entries.every(entry => {
-    const valid = 
-      typeof entry.client === 'string' &&
-      typeof entry.project === 'string' &&
-      typeof entry.description === 'string' &&
-      typeof entry.timeInMinutes === 'number' &&
-      typeof entry.amount === 'number';
+  console.log("Validating entries:", JSON.stringify(entries, null, 2));
 
-    if (!valid) {
-      console.error("Invalid entry:", entry);
+  // Add more detailed validation
+  return entries.every((entry, index) => {
+    console.log(`\nValidating entry ${index}:`, entry);
+
+    if (!entry) {
+      console.error(`Entry ${index} is null or undefined`);
+      return false;
     }
-    return valid;
+
+    // Log all field types
+    console.log("Field types for entry", index, ":");
+    console.log("client:", typeof entry.client, "value:", entry.client);
+    console.log("project:", typeof entry.project, "value:", entry.project);
+    console.log("description:", typeof entry.description, "value:", entry.description);
+    console.log("timeInMinutes:", typeof entry.timeInMinutes, "value:", entry.timeInMinutes);
+    console.log("amount:", typeof entry.amount, "value:", entry.amount);
+    console.log("hourlyRate:", typeof entry.hourlyRate, "value:", entry.hourlyRate);
+
+    // Check required fields exist and have correct types
+    const validTypes = 
+      typeof entry.client === 'string' && entry.client.trim() !== '' &&
+      typeof entry.project === 'string' && entry.project.trim() !== '' &&
+      typeof entry.description === 'string' && entry.description.trim() !== '';
+
+    if (!validTypes) {
+      console.error(`Entry ${index} has invalid text fields:`, {
+        client: typeof entry.client === 'string' ? entry.client : 'INVALID',
+        project: typeof entry.project === 'string' ? entry.project : 'INVALID',
+        description: typeof entry.description === 'string' ? entry.description : 'INVALID'
+      });
+      return false;
+    }
+
+    // Handle numeric fields
+    let timeInMinutes = 0;
+    let amount = 0;
+
+    // Convert and validate timeInMinutes
+    if (typeof entry.timeInMinutes === 'string') {
+      timeInMinutes = parseFloat(entry.timeInMinutes);
+      console.log(`Converting timeInMinutes from string to number: ${entry.timeInMinutes} -> ${timeInMinutes}`);
+    } else if (typeof entry.timeInMinutes === 'number') {
+      timeInMinutes = entry.timeInMinutes;
+      console.log(`timeInMinutes is already a number: ${timeInMinutes}`);
+    }
+
+    // Convert and validate amount
+    if (typeof entry.amount === 'string') {
+      amount = parseFloat(entry.amount);
+      console.log(`Converting amount from string to number: ${entry.amount} -> ${amount}`);
+    } else if (typeof entry.amount === 'number') {
+      amount = entry.amount;
+      console.log(`amount is already a number: ${amount}`);
+    }
+
+    if (isNaN(timeInMinutes) || timeInMinutes <= 0) {
+      console.error(`Entry ${index} has invalid timeInMinutes:`, timeInMinutes);
+      return false;
+    }
+
+    if (isNaN(amount) || amount <= 0) {
+      console.error(`Entry ${index} has invalid amount:`, amount);
+      return false;
+    }
+
+    // Update the entry with converted numeric values
+    entry.timeInMinutes = timeInMinutes;
+    entry.amount = amount;
+
+    // Calculate hourlyRate if missing
+    if (!entry.hourlyRate || isNaN(entry.hourlyRate)) {
+      entry.hourlyRate = (amount / (timeInMinutes / 60));
+      console.log(`Calculated hourlyRate for entry ${index}:`, entry.hourlyRate);
+    }
+
+    console.log(`Entry ${index} validation successful`);
+    return true;
   });
+}
+
+// Utility to split an array into chunks
+function chunkData<T>(data: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < data.length; i += size) {
+    chunks.push(data.slice(i, i + size))
+  }
+  return chunks
 }
 
 export async function POST(request: Request) {
@@ -53,6 +129,7 @@ export async function POST(request: Request) {
     const jsonData = await request.json();
 
     if (!Array.isArray(jsonData) || jsonData.length === 0) {
+      console.error("Invalid or empty data received:", jsonData);
       return NextResponse.json(
         { error: "No data found in Excel file" },
         { status: 400 }
@@ -110,18 +187,23 @@ Example response format:
   "confidence": "high|medium|low"
 }`;
 
-    // Get Gemini's understanding of the column structure
-    const result = await model.generateContent(prompt);
-    const mappingResponse = result.response.text();
-    console.log("Gemini mapping response:", mappingResponse);
-    const { mappings, confidence } = extractJSON(mappingResponse);
+    try {
+      // Get Gemini's understanding of the column structure
+      const result = await model.generateContent(prompt);
+      const mappingResponse = result.response.text();
+      console.log("Gemini mapping response:", mappingResponse);
+      const { mappings, confidence } = extractJSON(mappingResponse);
 
-    if (confidence === "low") {
-      console.warn("Low confidence in column mapping");
-    }
+      if (!mappings || typeof mappings !== 'object') {
+        throw new Error('Invalid column mappings received from AI');
+      }
 
-    // Now use these mappings to transform the data
-    const transformPrompt = `You are an expert at processing accounting WIP (Work in Progress) data.
+      if (confidence === "low") {
+        console.warn("Low confidence in column mapping");
+      }
+
+      // Transform the data
+      const transformPrompt = `You are an expert at processing accounting WIP (Work in Progress) data.
 Using these column mappings:
 ${JSON.stringify(mappings, null, 2)}
 
@@ -157,27 +239,64 @@ Return a JSON array (not an object) with this structure:
 
 Return ONLY the JSON array, no markdown formatting or other text.`;
 
-    const transformResult = await model.generateContent(transformPrompt);
-    const transformResponse = transformResult.response.text();
-    console.log("Gemini transform response:", transformResponse);
-    let entries = extractJSON(transformResponse);
+      const transformResult = await model.generateContent(transformPrompt);
+      const transformResponse = transformResult.response.text();
+      console.log("\nRaw Gemini transform response:", transformResponse);
+      
+      let entries;
+      try {
+        entries = extractJSON(transformResponse);
+        console.log("\nParsed entries:", JSON.stringify(entries, null, 2));
+      } catch (parseError) {
+        console.error("Failed to parse Gemini response:", parseError);
+        console.error("Raw response was:", transformResponse);
+        throw new Error('Failed to parse AI response into valid JSON');
+      }
 
-    // Convert Excel dates to ISO strings
-    entries = entries.map((entry: any) => ({
-      ...entry,
-      date: entry.date ? excelDateToISO(parseInt(entry.date)) : null
-    }));
+      if (!Array.isArray(entries)) {
+        console.error("Entries is not an array:", entries);
+        throw new Error('Invalid entries format received from AI');
+      }
+
+      // Convert Excel dates to ISO strings
+      try {
+        entries = entries.map((entry: any, index: number) => {
+          console.log(`\nProcessing entry ${index} date:`, entry.date);
+          return {
+            ...entry,
+            date: entry.date ? excelDateToISO(parseInt(entry.date)) : null
+          };
+        });
+      } catch (dateError) {
+        console.error("Error converting dates:", dateError);
+        throw new Error('Failed to convert Excel dates');
+      }
 
     // Validate the transformed data
     if (!validateEntries(entries)) {
+      console.error("\nValidation failed. Final entries state:", JSON.stringify(entries, null, 2));
       return NextResponse.json(
-        { error: "No valid entries found in the file. Please check the file format." },
+        { 
+          error: "Invalid data format in Excel file. Please ensure all required fields (client, project, description, time, amount) are present and valid.",
+          details: "Data validation failed"
+        },
         { status: 400 }
       );
     }
 
     // Return array format
     return NextResponse.json(entries);
+
+    } catch (aiError: any) {
+      console.error("AI processing error:", aiError);
+      return NextResponse.json(
+        { 
+          error: "Failed to process Excel data structure. Please ensure your Excel file follows the expected format.",
+          details: aiError.message 
+        },
+        { status: 400 }
+      );
+    }
 
   } catch (error: any) {
     console.error("Error processing Excel data:", error);
