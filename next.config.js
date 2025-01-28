@@ -30,22 +30,8 @@ const nextConfig = {
     return config;
   },
   experimental: {
-    outputFileTracingExcludes: {
-      '*': [
-        'node_modules/@swc/core-linux-x64-gnu',
-        'node_modules/@swc/core-linux-x64-musl',
-        'node_modules/@esbuild/linux-x64',
-        'node_modules/.pnpm',
-        '.next',
-        'dist',
-        'node_modules/**/test',
-        'node_modules/**/tests',
-        'node_modules/**/*.md',
-        'node_modules/**/*.d.ts',
-        'node_modules/**/*.map'
-      ]
-    },
-    outputFileTracingRoot: process.cwd(),
+    // Disable file tracing completely to avoid the stack overflow
+    outputFileTracing: false
   },
   // Add more logging options
   onDemandEntries: {
