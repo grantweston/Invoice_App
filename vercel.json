@@ -8,7 +8,13 @@
       "maxDuration": 60
     },
     "app/api/analyze-screen/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 120
+    },
+    "app/api/excel-parse/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/gemini/route.ts": {
+      "maxDuration": 300
     }
   },
   "headers": [

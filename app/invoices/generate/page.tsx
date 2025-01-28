@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useWIPStore } from '@/src/store/wipStore';
+import { useWIPStore } from '@/src/store/wipEntries';
 import { useGeneratedInvoices } from '@/src/store/generatedInvoicesStore';
 import DocGenerator from '../../components/DocGenerator';
 import { WIPEntry } from '@/src/types';
@@ -26,6 +26,7 @@ export default function GenerateInvoicePage() {
   const [analyzedWIPData, setAnalyzedWIPData] = useState<any>(null);
   const wipEntries = useWIPStore((state) => state.entries);
   const addInvoice = useGeneratedInvoices((state) => state.addInvoice);
+  const appendWIPData = useWIPStore((state) => state.appendWIPData);
 
   // Format currency helper
   const formatCurrency = (amount: number): string => {
@@ -54,12 +55,17 @@ export default function GenerateInvoicePage() {
   const handleWIPFileAnalyzed = async (data: any) => {
     setIsAnalyzingWIP(true);
     try {
-      // Data is already analyzed from FileDropZone, just use it directly
       console.log('Received analyzed WIP data:', data);
       
-      // Log hours for each project
+      // Append the raw WIP data instead of overwriting
+      appendWIPData({
+        entries: data,
+        totalHours: data.reduce((sum: number, entry: any) => sum + (entry.timeInMinutes / 60), 0),
+        totalAmount: data.reduce((sum: number, entry: any) => sum + entry.amount, 0)
+      });
+      
+      // Group by client and project for display
       if (Array.isArray(data)) {
-        // Group by client and project
         const groupedData = data.reduce((acc, entry) => {
           const clientId = entry.client;
           if (!acc[clientId]) {
@@ -79,10 +85,8 @@ export default function GenerateInvoicePage() {
             };
           }
           
-          // Add entry
           acc[clientId].projects[projectName].entries.push(entry);
           
-          // Update totals
           const hours = entry.timeInMinutes / 60;
           acc[clientId].projects[projectName].totalHours += hours;
           acc[clientId].projects[projectName].totalAmount += entry.amount;
@@ -271,9 +275,9 @@ export default function GenerateInvoicePage() {
     acc[entry.client].projects[entry.project].entries.push({
       ...entry,
       id: typeof entry.id === 'string' ? parseInt(entry.id) : entry.id,
-      associatedDailyIds: entry.associatedDailyIds.map(id => 
+      associatedDailyIds: entry.associatedDailyIds?.map(id => 
         typeof id === 'string' ? parseInt(id) : id
-      ),
+      ) || [],
       subEntries: [],
       startDate: Date.now(),
       lastWorkedDate: Date.now()
