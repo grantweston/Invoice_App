@@ -32,24 +32,18 @@ const nextConfig = {
   experimental: {
     outputFileTracingExcludes: {
       '*': [
-        'node_modules/.pnpm/**',
-        '.next/**',
-        'dist/**',
-        'node_modules/**/+(test|tests)/**',
-        'node_modules/**/*.+(md|d.ts|map)',
-        'recordings/**',
-        'captures/**',
-        'tmp/**',
-        '**/screenshots/**',
-        '**/screen-captures/**',
-        '**/*.+(jpg|jpeg|png|gif|webp|webm)',
-      ],
-    },
-    outputFileTracingIncludes: {
-      '**': [
-        'next.config.js',
-        'package.json',
-      ],
+        'node_modules/@swc/core-linux-x64-gnu',
+        'node_modules/@swc/core-linux-x64-musl',
+        'node_modules/@esbuild/linux-x64',
+        'node_modules/.pnpm',
+        '.next',
+        'dist',
+        'node_modules/**/test',
+        'node_modules/**/tests',
+        'node_modules/**/*.md',
+        'node_modules/**/*.d.ts',
+        'node_modules/**/*.map'
+      ]
     },
     outputFileTracingRoot: process.cwd(),
   },
