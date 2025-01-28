@@ -1,6 +1,9 @@
 {
   "version": 2,
   "functions": {
+    "app/api/**/*": {
+      "maxDuration": 300
+    },
     "app/api/templates/route.ts": {
       "maxDuration": 60
     },
@@ -26,6 +29,12 @@
           "value": "no-store, max-age=0"
         }
       ]
+    }
+  ],
+  "routes": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     }
   ]
 }
